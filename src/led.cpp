@@ -46,6 +46,10 @@ static void led_blink_start(uint8_t r, uint8_t g, uint8_t b,
     led_set_color(r, g, b);
 }
 
+void led_blink_orange_twice_start() {
+    led_blink_start(255, 80, 0, 2, 500, 250);
+}
+
 void led_blink_red_twice_start() {
     led_blink_start(255, 0, 0, 2, 500, 250);
 }

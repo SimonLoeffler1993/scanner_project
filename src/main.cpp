@@ -65,6 +65,8 @@ void loop() {
             led_blink_red_twice_start();
         } else if (ap_mode) {
             led_blink_blue_twice_slow_start();
+        } else if (!api_configured()) {
+            led_blink_orange_twice_start();  // sofort beim Boot anzeigen
         }
         last_blink_trigger = millis();
     }

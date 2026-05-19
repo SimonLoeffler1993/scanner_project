@@ -50,6 +50,11 @@ static void saveConfig(const AppConfig &cfg) {
     f.close();
 }
 
+bool api_configured() {
+    AppConfig cfg;
+    return loadConfig(cfg) && cfg.apiUrl.length() > 0;
+}
+
 // ---------------------------------------------------------------
 // Template-Platzhalter ersetzen
 // ---------------------------------------------------------------
