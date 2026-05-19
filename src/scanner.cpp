@@ -38,6 +38,7 @@ const uint8_t keycode2ascii[57][2] = {
 // ---------------------------------------------------------------
 // Deutsche Keymap (QWERTZ): basiert auf US-Map, aber y<->z getauscht
 // und sonst identisch (erweiterbar wenn nötig)
+// TODO #1 DE Layout vollständig implementieren (z.B. Shift+7 = / statt &)
 // ---------------------------------------------------------------
 const uint8_t keycode2ascii_de[57][2] = {
     {0, 0},       {0, 0},       {0, 0},       {0, 0},
@@ -217,6 +218,7 @@ static void process_scan()        // ← erst definieren
     Serial.println(barcode);
     barcode_len   = 0;
     scan_complete = false;
+    led_set_color(0, 255, 0);  // Grün für Erfolg
 
 }
 

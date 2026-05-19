@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WLAN Konfiguration</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #e8f0fe;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      color: #1e3a5f;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 440px;
+      border-top: 4px solid #2563eb;
+      box-shadow: 0 2px 12px rgba(37, 99, 235, 0.12);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .wifi-icon {
+      width: 40px;
+      height: 40px;
+      background: #2563eb;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .wifi-icon svg {
+      width: 22px; height: 22px;
+      fill: none; stroke: white; stroke-width: 2; stroke-linecap: round;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #1e3a5f;
+    }
+
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.875rem;
+      color: #1e40af;
+      line-height: 1.6;
+      margin-bottom: 1.6rem;
+    }
+    .info-box strong { color: #1e3a5f; }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 0.4rem;
+    }
+
+    .field { margin-bottom: 1.1rem; }
+
+    input {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      color: #1e3a5f;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    button {
+      width: 100%;
+      margin-top: 0.4rem;
+      padding: 0.75rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-weight: 600;
+      color: #fff;
+      background: #2563eb;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #1d4ed8; }
+    button:active { background: #1e40af; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="wifi-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+          <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <circle cx="12" cy="20" r="1" fill="white" stroke="none"/>
+        </svg>
+      </div>
+      <h1>WLAN Konfiguration</h1>
+    </div>
+
+    <div class="info-box">
+      <strong>WLAN-Config</strong>
+      <p>Verbinde den Skiscanner mit deinem Netzwerk</p>
+    </div>
+
+    <form action="/save" method="POST">
+      <div class="field">
+        <label for="ssid">SSID</label>
+        <input id="ssid" type="text" name="ssid" placeholder="Netzwerkname" required>
+      </div>
+      <div class="field">
+        <label for="password">Passwort</label>
+        <input id="password" type="password" name="password" placeholder="Passwort" required>
+      </div>
+      <button type="submit">Speichern und verbinden</button>
+    </form>
+  </div>
+</body>
+</html>

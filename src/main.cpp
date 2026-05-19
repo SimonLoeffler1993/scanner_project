@@ -13,6 +13,11 @@
 #include <Arduino.h>
 #include "scanner.h"
 #include "led.h"
+#include "wlan.h"
+
+// Dateisytem neu aufspielen mit
+// platformio run --target uploadfs 
+// wird nötig wen data Datein geändert wurden.
 
 // ---------------------------------------------------------------
 // Setup
@@ -23,6 +28,7 @@ void setup()
     delay(500);
     led_init();
     scanner_init();
+    wlan_init();
 }
 
 // ---------------------------------------------------------------
@@ -32,5 +38,5 @@ void loop()
 {
     // Scanner verarbeiten
     scanner_loop();    
-    delay(10);
+    delay(20);
 }
