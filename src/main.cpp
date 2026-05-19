@@ -11,6 +11,7 @@
  */
 
 #include <Arduino.h>
+#include <WiFi.h>
 #include "scanner.h"
 #include "led.h"
 #include "wlan.h"
@@ -36,7 +37,16 @@ void setup()
 // ---------------------------------------------------------------
 void loop()
 {
-    // Scanner verarbeiten
-    scanner_loop();    
+    static bool last_scan_complete = false;
+
+    if (!scanner_connected) {
+        led_blink_red_twice();
+    }
+
+    if (WiFi.getMode() == WIFI_AP) {
+        led_blink_blue_twice_slow();
+    }
+
+    scanner_loop();
     delay(20);
 }

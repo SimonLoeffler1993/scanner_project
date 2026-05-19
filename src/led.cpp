@@ -54,3 +54,39 @@ void led_blink_blue_twice()
     led_off();
     delay(150);
 }
+
+void led_blink_blue_twice_slow()
+{
+    // 1. Blink
+    led_set_color(0, 0, 255);
+    delay(800);
+    
+    led_off();
+    delay(400);
+    
+    // 2. Blink
+    led_set_color(0, 0, 255);
+    delay(800);
+    
+    led_off();
+    delay(400);
+}
+
+void led_blink_red_twice()
+{
+    led_off();
+    delay(100);
+
+    // 1. Blink
+    led_set_color(255, 0, 0);  // Rot
+    delay(150);
+    
+    led_off();
+    delay(100);
+    
+    // 2. Blink
+    led_set_color(255, 0, 0);  // Rot
+    delay(150);
+    
+    
+}

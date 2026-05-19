@@ -174,14 +174,6 @@
 
     <!-- Header -->
     <div class="header">
-      <div class="status-icon">
-        <svg viewBox="0 0 24 24">
-          <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-          <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-          <circle cx="12" cy="20" r="1" fill="white" stroke="none"/>
-        </svg>
-      </div>
       <h1>WLAN Status</h1>
     </div>
 
@@ -195,7 +187,14 @@
     <div class="info-box">
       <div class="info-row">
         <span class="label">IP-Adresse</span>
-        <strong>{{IP_ADDRESS}}</strong>
+        <strong>%IP_ADDRESS%</strong>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-row">
+        <span class="label">USB Scanner</span>
+        <strong>%USB_SCANNER%</strong>
       </div>
     </div>
 
@@ -206,7 +205,7 @@
     <form action="/save" method="POST">
       <div class="field">
         <label for="ssid">SSID</label>
-        <input id="ssid" type="text" name="ssid" placeholder="Neuer Netzwerkname" value="{{WLAN_SSID}}" required>
+        <input id="ssid" type="text" name="ssid" placeholder="Neuer Netzwerkname" value="%WLAN_SSID%" required>
       </div>
       <div class="field">
         <label for="password">Passwort</label>
@@ -222,17 +221,17 @@
     <form action="/api-save" method="POST">
       <div class="field">
         <label for="api_url">Endpunkt-URL</label>
-        <input id="api_url" type="url" name="api_url" placeholder="https://beispiel.de/api/event" value="{{API_URL}}" required>
+        <input id="api_url" type="url" name="api_url" placeholder="https://beispiel.de/api/event" value="%API_URL%" required>
       </div>
       <div class="field">
         <label for="api_name">Name <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
-        <input id="api_name" type="text" name="api_name" placeholder="Name für die API-Integration" value="{{API_NAME}}">
+        <input id="api_name" type="text" name="api_name" placeholder="Name für die API-Integration" value="%API_NAME%">
       </div>
       <div class="field">
         <label for="api_trigger">Funktion</label>
         <select id="api_trigger" name="api_trigger">
-          <option value="0" {{API_TRIGGER_0}}>bearbeitungsstand</option>
-          <option value="1" {{API_TRIGGER_1}}>fertigstellen</option>
+          <option value="0" %API_TRIGGER_0%>bearbeitungsstand</option>
+          <option value="1" %API_TRIGGER_1%>fertigstellen</option>
         </select>
       </div>
       <button type="submit" class="btn btn-primary">API-Einstellungen speichern</button>
@@ -245,8 +244,8 @@
     <hr class="divider">
 
     <!-- WLAN vergessen -->
-    <form action="/forget" method="POST">
-      <button type="submit" class="btn btn-danger">WLAN vergessen</button>
+    <form action="/reset" method="POST">
+      <button type="submit" class="btn btn-danger">Einstellungen zurücksetzen</button>
     </form>
 
   </div>

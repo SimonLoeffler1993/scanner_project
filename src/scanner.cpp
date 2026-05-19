@@ -2,7 +2,7 @@
 #include "usb/usb_host.h"   // ← USB Host Stack (muss vor HID gestartet werden)
 #include "hid_host.h"
 #include "hid_usage_keyboard.h"
-#include "led.h"
+// #include "led.h"
 
 // ---------------------------------------------------------------
 // Barcode-Puffer
@@ -11,6 +11,7 @@
 static char barcode[MAX_LEN];
 static int  barcode_len   = 0;
 bool scan_complete = false;  // extern zugänglich für main.cpp
+bool scanner_connected = false;  // extern zugänglich für main.cpp
 
 // ---------------------------------------------------------------
 // Keycode → ASCII  (US-Layout)
@@ -117,7 +118,7 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
                     if (barcode_len > 0) {
                         barcode[barcode_len] = '\0';
                         scan_complete = true;
-                        led_blink_blue_twice();  // 2x schnell blau blinken
+                        // led_blink_blue_twice();  // 2x schnell blau blinken
                     }
                 } else if (ch >= 0x20 && ch < 0x7F) {
                     if (barcode_len < MAX_LEN - 1)
@@ -130,6 +131,7 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
         case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
             Serial.println("[USB] Scanner getrennt.");
             hid_host_device_close(dev);
+            scanner_connected = false;
             break;
 
         case HID_HOST_INTERFACE_EVENT_TRANSFER_ERROR:
@@ -164,6 +166,7 @@ static void hid_host_event_cb(hid_host_device_handle_t dev,
     if (event != HID_HOST_DRIVER_EVENT_CONNECTED) return;
 
     Serial.println("[USB] Scanner verbunden → öffne...");
+    scanner_connected = true;
 
     const hid_host_device_config_t dev_config = {
         .callback     = keyboard_event_cb,
@@ -218,7 +221,7 @@ static void process_scan()        // ← erst definieren
     Serial.println(barcode);
     barcode_len   = 0;
     scan_complete = false;
-    led_set_color(0, 255, 0);  // Grün für Erfolg
+    // led_set_color(0, 255, 0);  // Grün für Erfolg
 
 }
 
