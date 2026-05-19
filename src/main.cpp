@@ -52,42 +52,50 @@ void setup()
 // }
 
 void loop() {
-    // ── LED-Zustand (non-blocking) ──────────────────────────
-    static bool last_connected   = true;
-    static bool last_ap_mode     = false;
     static uint32_t last_blink_trigger = 0;
+    static bool     status_led_set     = false;
 
-    bool ap_mode = (WiFi.getMode() == WIFI_AP);
+    bool ap_mode          = (WiFi.getMode() == WIFI_AP);
+    bool all_ok           = scanner_connected && !ap_mode && api_configured();
 
     // Alle 3 Sekunden Blink-Sequenz neu starten
     if (millis() - last_blink_trigger > 3000) {
         if (!scanner_connected) {
             led_blink_red_twice_start();
+            status_led_set = false;
         } else if (ap_mode) {
             led_blink_blue_twice_slow_start();
+            status_led_set = false;
         } else if (!api_configured()) {
-            led_blink_orange_twice_start();  // sofort beim Boot anzeigen
+            led_blink_orange_twice_start();
+            status_led_set = false;
         }
         last_blink_trigger = millis();
     }
 
-    led_update();  // ← non-blocking, kein delay()
+    // Default: dauerhaft Grün wenn alles OK und Blinken fertig
+    if (all_ok && led_blink_done() && !status_led_set) {
+        led_set_color(0, 255, 0);
+        status_led_set = true;
+    }
+
+    led_update();
 
     // ── Gescannten Code aus Queue holen & senden ────────────
     if (scan_queue != NULL) {
         char buf[256];
         if (xQueueReceive(scan_queue, buf, 0) == pdTRUE) {
             Serial.printf("[SCAN] Code: %s\n", buf);
+            status_led_set = false;  // nach Scan neu evaluieren
             if (WiFi.status() == WL_CONNECTED) {
-                send_to_api(buf);
+                bool ok = send_to_api(buf);
+                ok ? led_blink_green_twice_start() : led_blink_red_twice_start_fast();
             } else {
                 Serial.println("[SCAN] Kein WLAN – Code nicht gesendet.");
+                led_blink_red_twice_start();
             }
         }
     }
 
-    // ── Scanner ticken ──────────────────────────────────────
     scanner_loop();
-
-    // Kein delay() mehr!
 }

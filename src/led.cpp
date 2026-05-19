@@ -58,6 +58,18 @@ void led_blink_blue_twice_slow_start() {
     led_blink_start(0, 0, 255, 2, 800, 400);
 }
 
+void led_blink_green_twice_start() {
+    led_blink_start(0, 255, 0, 2, 200, 100);  // schnell, einmal
+}
+
+void led_blink_red_twice_start_fast() {
+    led_blink_start(255, 0, 0, 2, 200, 100);  // schnell, einmal
+}
+
+bool led_blink_done() {
+    return blink_count >= blink_total;
+}
+
 void led_update() {
     if (blink_count >= blink_total) return;
 

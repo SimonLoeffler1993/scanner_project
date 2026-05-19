@@ -180,11 +180,11 @@ static bool connectWiFi() {
 // ---------------------------------------------------------------
 // Globale Funktion zum API-Aufruf mit gescanntem Code
 // ----------------------------------------------------------------
-void send_to_api(const char* code) {
+bool send_to_api(const char* code) {
     AppConfig cfg;
     if (!loadConfig(cfg) || cfg.apiUrl.isEmpty()) {
         Serial.println("[API] Keine URL konfiguriert.");
-        return;
+        return false;
     }
 
     HTTPClient http;
@@ -199,6 +199,7 @@ void send_to_api(const char* code) {
     int code_http = http.POST(body);
     Serial.printf("[API] Gesendet → HTTP %d\n", code_http);
     http.end();
+    return code_http >= 200 && code_http < 300;
 }
 
 // ---------------------------------------------------------------
