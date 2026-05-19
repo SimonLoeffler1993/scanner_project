@@ -171,10 +171,34 @@ static bool connectWiFi() {
     return false;
 }
 
+
+// ---------------------------------------------------------------
+// Globale Funktion zum API-Aufruf mit gescanntem Code
+// ----------------------------------------------------------------
+void send_to_api(const char* code) {
+    AppConfig cfg;
+    if (!loadConfig(cfg) || cfg.apiUrl.isEmpty()) {
+        Serial.println("[API] Keine URL konfiguriert.");
+        return;
+    }
+
+    HTTPClient http;
+    http.begin(cfg.apiUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    String body = "{\"code\":\"" + String(code) + "\""
+                + ",\"name\":\""    + cfg.apiName    + "\""
+                + ",\"trigger\":"   + cfg.apiTrigger
+                + "}";
+
+    int code_http = http.POST(body);
+    Serial.printf("[API] Gesendet → HTTP %d\n", code_http);
+    http.end();
+}
+
 // ---------------------------------------------------------------
 // Access Point + Webserver starten
 // ---------------------------------------------------------------
-
 static void startAccessPoint() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP("Skiscanner-Config", "12345678");

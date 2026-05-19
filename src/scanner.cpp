@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------
 // Barcode-Puffer
 // ---------------------------------------------------------------
+QueueHandle_t scan_queue = NULL;
 #define MAX_LEN 256
 static char barcode[MAX_LEN];
 static int  barcode_len   = 0;
@@ -190,6 +191,7 @@ void scanner_init()
     Serial.println("  ESP32-S3 N16R8");
     Serial.println("============================================");
     Serial.println("Warte auf Scanner am USB-Port...\n");
+    scan_queue = xQueueCreate(10, 256);  // 10 Codes à 256 Byte puffern
 
     // 1) USB Host Stack starten
     const usb_host_config_t usb_config = {
@@ -214,7 +216,7 @@ void scanner_init()
     ESP_ERROR_CHECK(hid_host_install(&hid_config));
 }
 
-static void process_scan()        // ← erst definieren
+static void process_scan_alt()        // ← erst definieren
 {
     Serial.println("---");
     Serial.print("SCAN: ");
@@ -223,6 +225,20 @@ static void process_scan()        // ← erst definieren
     scan_complete = false;
     // led_set_color(0, 255, 0);  // Grün für Erfolg
 
+}
+
+static void process_scan() {
+    Serial.printf("SCAN: %s\n", barcode);
+
+    if (scan_queue != NULL) {
+        char buf[256];
+        strncpy(buf, barcode, 255);
+        buf[255] = '\0';
+        xQueueSend(scan_queue, buf, 0);  // non-blocking
+    }
+
+    barcode_len   = 0;
+    scan_complete = false;
 }
 
 void scanner_loop()

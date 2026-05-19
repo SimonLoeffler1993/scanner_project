@@ -35,18 +35,57 @@ void setup()
 // ---------------------------------------------------------------
 // Loop
 // ---------------------------------------------------------------
-void loop()
-{
-    static bool last_scan_complete = false;
+// void loopalt()
+// {
+//     static bool last_scan_complete = false;
 
-    if (!scanner_connected) {
-        led_blink_red_twice();
+//     if (!scanner_connected) {
+//         led_blink_red_twice();
+//     }
+
+//     if (WiFi.getMode() == WIFI_AP) {
+//         led_blink_blue_twice_slow();
+//     }
+
+//     scanner_loop();
+//     delay(20);
+// }
+
+void loop() {
+    // ── LED-Zustand (non-blocking) ──────────────────────────
+    static bool last_connected   = true;
+    static bool last_ap_mode     = false;
+    static uint32_t last_blink_trigger = 0;
+
+    bool ap_mode = (WiFi.getMode() == WIFI_AP);
+
+    // Alle 3 Sekunden Blink-Sequenz neu starten
+    if (millis() - last_blink_trigger > 3000) {
+        if (!scanner_connected) {
+            led_blink_red_twice_start();
+        } else if (ap_mode) {
+            led_blink_blue_twice_slow_start();
+        }
+        last_blink_trigger = millis();
     }
 
-    if (WiFi.getMode() == WIFI_AP) {
-        led_blink_blue_twice_slow();
+    led_update();  // ← non-blocking, kein delay()
+
+    // ── Gescannten Code aus Queue holen & senden ────────────
+    if (scan_queue != NULL) {
+        char buf[256];
+        if (xQueueReceive(scan_queue, buf, 0) == pdTRUE) {
+            Serial.printf("[SCAN] Code: %s\n", buf);
+            if (WiFi.status() == WL_CONNECTED) {
+                send_to_api(buf);
+            } else {
+                Serial.println("[SCAN] Kein WLAN – Code nicht gesendet.");
+            }
+        }
     }
 
+    // ── Scanner ticken ──────────────────────────────────────
     scanner_loop();
-    delay(20);
+
+    // Kein delay() mehr!
 }
