@@ -51,11 +51,11 @@ const uint8_t keycode2ascii_de[57][2] = {
     {'q', 'Q'},   {'r', 'R'},   {'s', 'S'},   {'t', 'T'},
     {'u', 'U'},   {'v', 'V'},   {'w', 'W'},   {'x', 'X'},
     {'z', 'Z'},   {'y', 'Y'},
-    {'1', '!'},   {'2', '@'},   {'3', '#'},   {'4', '$'},
-    {'5', '%'},   {'6', '^'},   {'7', '/'},   {'8', '*'},
-    {'9', '('},   {'0', ')'},
+    {'1', '!'},   {'2', '"'},   {'3', 0},     {'4', '$'},
+    {'5', '%'},   {'6', '&'},   {'7', '/'},   {'8', '('},
+    {'9', ')'},   {'0', '='},
     {'\r', '\r'}, {0, 0},       {'\b', 0},    {0, 0},
-    {' ', ' '},   {'-', '_'},   {'=', '+'},   {'[', '{'},
+    {' ', ' '},   {'-', '?'},   {'=', 0},     {'[', '{'},
     {']', '}'},   {'\\', '|'},  {'\\', '|'},  {';', ':'},
     {'\'', '"'},  {'`', '~'},   {',', ';'},   {'.', ':'},
     {'/', '?'},
@@ -98,9 +98,9 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
             uint8_t data[10] = {0};
             size_t  data_len = 0;
             hid_host_device_get_raw_input_report_data(dev, data, sizeof(data), &data_len);
-            // Serial.printf("[USB] Raw report len=%d:", (int)data_len);
-            // for (size_t i = 0; i < data_len; ++i) Serial.printf(" %02X", data[i]);
-            // Serial.println();
+            Serial.printf("[USB] Raw report len=%d:", (int)data_len);
+            for (size_t i = 0; i < data_len; ++i) Serial.printf(" %02X", data[i]);
+            Serial.println();
             if (data_len < 3) break;
 
             bool shift = (data[0] & 0x22) != 0;
@@ -112,7 +112,7 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
 
                 const uint8_t (*map)[2] = use_de_layout ? keycode2ascii_de : keycode2ascii;
                 uint8_t ch = shift ? map[kc][1] : map[kc][0];
-                // Serial.printf("[USB] kc=%d shift=%d ch=0x%02X\n", kc, shift ? 1 : 0, (int)ch);
+                Serial.printf("[USB] kc=%d shift=%d ch=0x%02X\n", kc, shift ? 1 : 0, (int)ch);
                 if (ch == 0) continue;
 
                 if (ch == '\r') {
