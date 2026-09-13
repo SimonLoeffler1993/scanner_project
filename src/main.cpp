@@ -24,10 +24,11 @@
 // Setup
 // ---------------------------------------------------------------
 void setup()
-{   
+{
     Serial.begin(115200);
     delay(500);
     led_init();
+    led_set_color(255, 0, 0);  // Initial Rot bis Status ermittelt wird
     scanner_init();
     wlan_init();
 }
@@ -54,9 +55,17 @@ void setup()
 void loop() {
     static uint32_t last_blink_trigger = 0;
     static bool     status_led_set     = false;
+    static bool     first_loop         = true;
 
     bool ap_mode          = (WiFi.getMode() == WIFI_AP);
-    bool all_ok           = scanner_connected && !ap_mode && api_configured();
+    bool wifi_connected   = (WiFi.status() == WL_CONNECTED);
+    bool all_ok           = scanner_connected && wifi_connected && !ap_mode && api_configured();
+
+    // Beim ersten Loop-Durchlauf sofort Status setzen
+    if (first_loop) {
+        first_loop = false;
+        last_blink_trigger = millis() - 3000;  // Erste Blink-Sequenz sofort auslösen
+    }
 
     // Alle 3 Sekunden Blink-Sequenz neu starten
     if (millis() - last_blink_trigger > 3000) {
@@ -65,6 +74,9 @@ void loop() {
             status_led_set = false;
         } else if (ap_mode) {
             led_blink_blue_twice_slow_start();
+            status_led_set = false;
+        } else if (!wifi_connected) {
+            led_blink_green_twice_start();
             status_led_set = false;
         } else if (!api_configured()) {
             led_blink_orange_twice_start();

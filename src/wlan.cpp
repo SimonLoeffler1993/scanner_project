@@ -5,6 +5,8 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <Update.h>
+#include <esp_flash.h>
 
 static AsyncWebServer server(80);
 
@@ -56,6 +58,49 @@ bool api_configured() {
 }
 
 // ---------------------------------------------------------------
+// WLAN-Konfiguration aus Flash lesen (für Webflasher-Integration)
+// ---------------------------------------------------------------
+bool loadFlashWLANConfig(String &ssid, String &password) {
+    // Die WLAN-Konfiguration wird am Ende der Firmware erwartet
+    // Wir suchen nach dem Magic-Marker "WCFG"
+    const uint32_t search_start = 0x300000; // Suche ab 3MB beginnen
+    const uint32_t search_end = 0x3F0000; // Bis kurz vor Ende
+
+    for (uint32_t addr = search_start; addr < search_end; addr += 4096) {
+        uint8_t buffer[256];
+        esp_err_t err = esp_flash_read(NULL, buffer, addr, sizeof(buffer));
+
+        if (err == ESP_OK) {
+            // Nach Magic-Marker suchen
+            if (buffer[0] == 'W' && buffer[1] == 'C' && buffer[2] == 'F' && buffer[3] == 'G') {
+                Serial.printf("[FLASH] WLAN-Konfiguration gefunden bei 0x%08X\n", addr);
+
+                // WLAN-Konfiguration als JSON lesen
+                const char* jsonStart = (const char*)(buffer + 4);
+                String jsonStr = String(jsonStart);
+
+                // JSON parsen
+                JsonDocument doc;
+                if (deserializeJson(doc, jsonStr) == DeserializationError::Ok) {
+                    ssid = doc["ssid"] | "";
+                    password = doc["password"] | "";
+                    bool configured = doc["configured"] | false;
+
+                    if (configured && ssid.length() > 0) {
+                        Serial.printf("[FLASH] SSID: %s\n", ssid.c_str());
+                        Serial.println("[FLASH] WLAN-Konfiguration geladen");
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    Serial.println("[FLASH] Keine WLAN-Konfiguration im Flash gefunden");
+    return false;
+}
+
+// ---------------------------------------------------------------
 // Template-Platzhalter ersetzen
 // ---------------------------------------------------------------
 
@@ -78,6 +123,41 @@ static String processTemplate(const String &var) {
 // ---------------------------------------------------------------
 
 static void registerRoutes() {
+
+    // /update – OTA Firmware Update (POST)
+    server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
+        // Anfrage-Handler nach dem Upload
+        if (Update.hasError()) {
+            request->send(500, "text/plain", "Update fehlgeschlagen!");
+        } else {
+            request->send(200, "text/plain", "Update erfolgreich! ESP startet neu...");
+            delay(1000);
+            ESP.restart();
+        }
+    }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        // Upload-Handler
+        if (!index) {
+            Serial.printf("Update gestartet: %s\n", filename.c_str());
+            // Update starten mit 16MB Flash-Größe (passend zur Konfiguration)
+            if (Update.begin(16 * 1024 * 1024)) {
+                Serial.println("Update gestartet");
+            } else {
+                Serial.println("Update Fehler beim Starten");
+            }
+        }
+
+        if (Update.write(data, len) != len) {
+            Serial.println("Update Fehler beim Schreiben");
+        }
+
+        if (final) {
+            if (Update.end(true)) {
+                Serial.printf("Update erfolgreich: %u Bytes\n", index + len);
+            } else {
+                Serial.println("Update fehlgeschlagen");
+            }
+        }
+    });
 
     // /info – IP als JSON
     server.on("/info", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -145,7 +225,18 @@ static void registerRoutes() {
 
 static bool connectWiFi() {
     AppConfig cfg;
-    if (!loadConfig(cfg)) return false;
+    bool useFlashConfig = false;
+
+    // Zuerst versuchen, WLAN-Konfiguration aus Flash zu laden
+    String flashSsid, flashPassword;
+    if (loadFlashWLANConfig(flashSsid, flashPassword)) {
+        Serial.println("[WLAN] Verwende Flash-WLAN-Konfiguration");
+        cfg.ssid = flashSsid;
+        cfg.password = flashPassword;
+        useFlashConfig = true;
+    } else if (!loadConfig(cfg)) {
+        return false;
+    }
 
     Serial.printf("Verbinde mit: %s\n", cfg.ssid.c_str());
     WiFi.mode(WIFI_STA);
@@ -160,6 +251,12 @@ static bool connectWiFi() {
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.printf("\nVerbunden! IP: %s\n", WiFi.localIP().toString().c_str());
+
+        // Wenn Flash-Konfiguration verwendet wurde, speichere sie in LittleFS
+        if (useFlashConfig) {
+            Serial.println("[WLAN] Speichere Flash-Konfiguration in LittleFS");
+            saveConfig(cfg);
+        }
 
         // Template-Prozessor für Platzhalter in connected.html
         server.serveStatic("/", LittleFS, "/")

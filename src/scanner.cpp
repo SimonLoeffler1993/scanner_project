@@ -193,18 +193,22 @@ void scanner_init()
     Serial.println("Warte auf Scanner am USB-Port...\n");
     scan_queue = xQueueCreate(10, 256);  // 10 Codes à 256 Byte puffern
 
-    // 1) USB Host Stack starten
+    // 1) Verzögerung um sicherzustellen, dass der Scanner bereit ist
+    Serial.println("[USB] Warte 2 Sekunden auf Scanner-Initialisierung...");
+    delay(2000);
+
+    // 2) USB Host Stack starten
     const usb_host_config_t usb_config = {
         .skip_phy_setup = false,
         .intr_flags     = ESP_INTR_FLAG_LEVEL1,
     };
     ESP_ERROR_CHECK(usb_host_install(&usb_config));
 
-    // 2) USB Host Daemon als eigenen Task starten
+    // 4) USB Host Daemon als eigenen Task starten
     //    (muss laufen bevor hid_host_install aufgerufen wird)
     xTaskCreate(usb_host_task, "usb_host", 4096, NULL, 5, NULL);
 
-    // 3) HID Host Driver starten
+    // 5) HID Host Driver starten
     const hid_host_driver_config_t hid_config = {
         .create_background_task = true,
         .task_priority          = 5,

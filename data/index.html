@@ -111,6 +111,7 @@
     }
     button:hover { background: #1d4ed8; }
     button:active { background: #1e40af; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -143,6 +144,75 @@
       </div>
       <button type="submit">Speichern und verbinden</button>
     </form>
+
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 1.4rem 0;">
+
+    <!-- Firmware Update -->
+    <p style="font-size: 0.875rem; font-weight: 600; color: #374151; margin-bottom: 1rem;">Firmware Update</p>
+    <form id="updateForm" enctype="multipart/form-data">
+      <div class="field">
+        <label for="firmware">Firmware-Datei (.bin)</label>
+        <input id="firmware" type="file" name="firmware" accept=".bin" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="margin-top: 0.4rem;">Firmware hochladen</button>
+    </form>
+    <div id="updateStatus" style="margin-top: 0.5rem; font-size: 0.875rem; color: #64748b;"></div>
+
+    <script>
+      document.getElementById('updateForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('firmware');
+        const statusDiv = document.getElementById('updateStatus');
+        const submitBtn = this.querySelector('button[type="submit"]');
+
+        if (fileInput.files.length === 0) {
+          statusDiv.textContent = 'Bitte eine Datei auswählen';
+          statusDiv.style.color = '#dc2626';
+          return;
+        }
+
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Lade hoch...';
+        statusDiv.textContent = 'Firmware wird hochgeladen...';
+        statusDiv.style.color = '#64748b';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/update', true);
+
+        xhr.upload.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            statusDiv.textContent = 'Hochladen: ' + percent + '%';
+          }
+        };
+
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            statusDiv.textContent = 'Update erfolgreich! ESP startet neu...';
+            statusDiv.style.color = '#166534';
+            submitBtn.textContent = 'Erfolgreich!';
+          } else {
+            statusDiv.textContent = 'Update fehlgeschlagen!';
+            statusDiv.style.color = '#dc2626';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Firmware hochladen';
+          }
+        };
+
+        xhr.onerror = function() {
+          statusDiv.textContent = 'Verbindungsfehler!';
+          statusDiv.style.color = '#dc2626';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Firmware hochladen';
+        };
+
+        xhr.send(formData);
+      });
+    </script>
   </div>
 </body>
 </html>
