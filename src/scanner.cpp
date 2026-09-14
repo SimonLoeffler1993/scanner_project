@@ -2,15 +2,17 @@
 #include "usb/usb_host.h"   // ← USB Host Stack (muss vor HID gestartet werden)
 #include "hid_host.h"
 #include "hid_usage_keyboard.h"
-#include "led.h"
+// #include "led.h"
 
 // ---------------------------------------------------------------
 // Barcode-Puffer
 // ---------------------------------------------------------------
+QueueHandle_t scan_queue = NULL;
 #define MAX_LEN 256
 static char barcode[MAX_LEN];
 static int  barcode_len   = 0;
 bool scan_complete = false;  // extern zugänglich für main.cpp
+bool scanner_connected = false;  // extern zugänglich für main.cpp
 
 // ---------------------------------------------------------------
 // Keycode → ASCII  (US-Layout)
@@ -38,6 +40,7 @@ const uint8_t keycode2ascii[57][2] = {
 // ---------------------------------------------------------------
 // Deutsche Keymap (QWERTZ): basiert auf US-Map, aber y<->z getauscht
 // und sonst identisch (erweiterbar wenn nötig)
+// TODO #1 DE Layout vollständig implementieren (z.B. Shift+7 = / statt &)
 // ---------------------------------------------------------------
 const uint8_t keycode2ascii_de[57][2] = {
     {0, 0},       {0, 0},       {0, 0},       {0, 0},
@@ -48,11 +51,11 @@ const uint8_t keycode2ascii_de[57][2] = {
     {'q', 'Q'},   {'r', 'R'},   {'s', 'S'},   {'t', 'T'},
     {'u', 'U'},   {'v', 'V'},   {'w', 'W'},   {'x', 'X'},
     {'z', 'Z'},   {'y', 'Y'},
-    {'1', '!'},   {'2', '@'},   {'3', '#'},   {'4', '$'},
-    {'5', '%'},   {'6', '^'},   {'7', '/'},   {'8', '*'},
-    {'9', '('},   {'0', ')'},
+    {'1', '!'},   {'2', '"'},   {'3', 0},     {'4', '$'},
+    {'5', '%'},   {'6', '&'},   {'7', '/'},   {'8', '('},
+    {'9', ')'},   {'0', '='},
     {'\r', '\r'}, {0, 0},       {'\b', 0},    {0, 0},
-    {' ', ' '},   {'-', '_'},   {'=', '+'},   {'[', '{'},
+    {' ', ' '},   {'-', '?'},   {'=', 0},     {'[', '{'},
     {']', '}'},   {'\\', '|'},  {'\\', '|'},  {';', ':'},
     {'\'', '"'},  {'`', '~'},   {',', ';'},   {'.', ':'},
     {'/', '?'},
@@ -95,9 +98,9 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
             uint8_t data[10] = {0};
             size_t  data_len = 0;
             hid_host_device_get_raw_input_report_data(dev, data, sizeof(data), &data_len);
-            // Serial.printf("[USB] Raw report len=%d:", (int)data_len);
-            // for (size_t i = 0; i < data_len; ++i) Serial.printf(" %02X", data[i]);
-            // Serial.println();
+            Serial.printf("[USB] Raw report len=%d:", (int)data_len);
+            for (size_t i = 0; i < data_len; ++i) Serial.printf(" %02X", data[i]);
+            Serial.println();
             if (data_len < 3) break;
 
             bool shift = (data[0] & 0x22) != 0;
@@ -109,14 +112,14 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
 
                 const uint8_t (*map)[2] = use_de_layout ? keycode2ascii_de : keycode2ascii;
                 uint8_t ch = shift ? map[kc][1] : map[kc][0];
-                // Serial.printf("[USB] kc=%d shift=%d ch=0x%02X\n", kc, shift ? 1 : 0, (int)ch);
+                Serial.printf("[USB] kc=%d shift=%d ch=0x%02X\n", kc, shift ? 1 : 0, (int)ch);
                 if (ch == 0) continue;
 
                 if (ch == '\r') {
                     if (barcode_len > 0) {
                         barcode[barcode_len] = '\0';
                         scan_complete = true;
-                        led_blink_blue_twice();  // 2x schnell blau blinken
+                        // led_blink_blue_twice();  // 2x schnell blau blinken
                     }
                 } else if (ch >= 0x20 && ch < 0x7F) {
                     if (barcode_len < MAX_LEN - 1)
@@ -129,6 +132,7 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
         case HID_HOST_INTERFACE_EVENT_DISCONNECTED:
             Serial.println("[USB] Scanner getrennt.");
             hid_host_device_close(dev);
+            scanner_connected = false;
             break;
 
         case HID_HOST_INTERFACE_EVENT_TRANSFER_ERROR:
@@ -163,6 +167,7 @@ static void hid_host_event_cb(hid_host_device_handle_t dev,
     if (event != HID_HOST_DRIVER_EVENT_CONNECTED) return;
 
     Serial.println("[USB] Scanner verbunden → öffne...");
+    scanner_connected = true;
 
     const hid_host_device_config_t dev_config = {
         .callback     = keyboard_event_cb,
@@ -186,19 +191,24 @@ void scanner_init()
     Serial.println("  ESP32-S3 N16R8");
     Serial.println("============================================");
     Serial.println("Warte auf Scanner am USB-Port...\n");
+    scan_queue = xQueueCreate(10, 256);  // 10 Codes à 256 Byte puffern
 
-    // 1) USB Host Stack starten
+    // 1) Verzögerung um sicherzustellen, dass der Scanner bereit ist
+    Serial.println("[USB] Warte 2 Sekunden auf Scanner-Initialisierung...");
+    delay(2000);
+
+    // 2) USB Host Stack starten
     const usb_host_config_t usb_config = {
         .skip_phy_setup = false,
         .intr_flags     = ESP_INTR_FLAG_LEVEL1,
     };
     ESP_ERROR_CHECK(usb_host_install(&usb_config));
 
-    // 2) USB Host Daemon als eigenen Task starten
+    // 4) USB Host Daemon als eigenen Task starten
     //    (muss laufen bevor hid_host_install aufgerufen wird)
     xTaskCreate(usb_host_task, "usb_host", 4096, NULL, 5, NULL);
 
-    // 3) HID Host Driver starten
+    // 5) HID Host Driver starten
     const hid_host_driver_config_t hid_config = {
         .create_background_task = true,
         .task_priority          = 5,
@@ -210,14 +220,29 @@ void scanner_init()
     ESP_ERROR_CHECK(hid_host_install(&hid_config));
 }
 
-static void process_scan()        // ← erst definieren
+static void process_scan_alt()        // ← erst definieren
 {
     Serial.println("---");
     Serial.print("SCAN: ");
     Serial.println(barcode);
     barcode_len   = 0;
     scan_complete = false;
+    // led_set_color(0, 255, 0);  // Grün für Erfolg
 
+}
+
+static void process_scan() {
+    Serial.printf("SCAN: %s\n", barcode);
+
+    if (scan_queue != NULL) {
+        char buf[256];
+        strncpy(buf, barcode, 255);
+        buf[255] = '\0';
+        xQueueSend(scan_queue, buf, 0);  // non-blocking
+    }
+
+    barcode_len   = 0;
+    scan_complete = false;
 }
 
 void scanner_loop()

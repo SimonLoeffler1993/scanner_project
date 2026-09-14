@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP verbunden</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #e8f0fe;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      color: #1e3a5f;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 440px;
+      border-top: 4px solid #2563eb;
+      box-shadow: 0 2px 12px rgba(37, 99, 235, 0.12);
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .status-icon {
+      width: 40px; height: 40px;
+      background: #2563eb;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .status-icon svg {
+      width: 22px; height: 22px;
+      fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    h1 { font-size: 1.25rem; font-weight: 600; color: #1e3a5f; }
+
+    /* ── Status badge ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #dcfce7;
+      color: #166534;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.3rem 0.7rem;
+      border-radius: 99px;
+      margin-bottom: 1.4rem;
+    }
+    .badge-dot {
+      width: 7px; height: 7px;
+      background: #22c55e;
+      border-radius: 50%;
+    }
+
+    /* ── Info box ── */
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.875rem;
+      color: #1e40af;
+      line-height: 1.8;
+      margin-bottom: 1.6rem;
+    }
+    .info-row { display: flex; justify-content: space-between; align-items: center; }
+    .info-row .label { color: #64748b; font-weight: 500; }
+    .info-row strong { color: #1e3a5f; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 1.4rem 0;
+    }
+
+    /* ── Section title ── */
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Form fields ── */
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 0.4rem;
+    }
+    .field { margin-bottom: 1.1rem; }
+
+    input {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      color: #1e3a5f;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    select {
+      width: 100%;
+      padding: 0.65rem 0.9rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      color: #1e3a5f;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.9rem center;
+    }
+    select:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      font-weight: 600;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary { background: #2563eb; color: #fff; margin-bottom: 0.7rem; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:active { background: #1e40af; }
+
+    .btn-danger { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-danger:hover { background: #fef2f2; }
+    .btn-danger:active { background: #fee2e2; }
+    .btn:disabled { background: #94a3b8; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <!-- Header -->
+    <div class="header">
+      <h1>WLAN Status</h1>
+    </div>
+
+    <!-- Status badge -->
+    <div class="badge">
+      <span class="badge-dot"></span>
+      Verbunden
+    </div>
+
+    <!-- Info -->
+    <div class="info-box">
+      <div class="info-row">
+        <span class="label">IP-Adresse</span>
+        <strong>%IP_ADDRESS%</strong>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-row">
+        <span class="label">USB Scanner</span>
+        <strong>%USB_SCANNER%</strong>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- WLAN ändern -->
+    <p class="section-title">WLAN-Einstellungen anpassen</p>
+    <form action="/save" method="POST">
+      <div class="field">
+        <label for="ssid">SSID</label>
+        <input id="ssid" type="text" name="ssid" placeholder="Neuer Netzwerkname" value="%WLAN_SSID%" required>
+      </div>
+      <div class="field">
+        <label for="password">Passwort</label>
+        <input id="password" type="password" name="password" placeholder="Neues Passwort" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Speichern und verbinden</button>
+    </form>
+
+    <hr class="divider">
+
+    <!-- API Endpunkt -->
+    <p class="section-title">API-Einstellungen</p>
+    <form action="/api-save" method="POST">
+      <div class="field">
+        <label for="api_url">Endpunkt-URL</label>
+        <input id="api_url" type="url" name="api_url" placeholder="https://beispiel.de/api/event" value="%API_URL%" required>
+      </div>
+      <div class="field">
+        <label for="api_name">Name <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
+        <input id="api_name" type="text" name="api_name" placeholder="Name für die API-Integration" value="%API_NAME%">
+      </div>
+      <div class="field">
+        <label for="api_trigger">Funktion</label>
+        <select id="api_trigger" name="api_trigger">
+          <option value="0" %API_TRIGGER_0%>bearbeitungsstand</option>
+          <option value="1" %API_TRIGGER_1%>fertigstellen</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">API-Einstellungen speichern</button>
+    </form>
+
+    <form action="/testapi" method="GET">
+      <button type="submit" class="btn btn-primary">API testen</button>
+    </form>
+
+    <hr class="divider">
+
+    <!-- Firmware Update -->
+    <p class="section-title">Firmware Update</p>
+    <form id="updateForm" enctype="multipart/form-data">
+      <div class="field">
+        <label for="firmware">Firmware-Datei (.bin)</label>
+        <input id="firmware" type="file" name="firmware" accept=".bin" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Firmware hochladen</button>
+    </form>
+    <div id="updateStatus" style="margin-top: 0.5rem; font-size: 0.875rem; color: #64748b;"></div>
+
+    <hr class="divider">
+
+    <script>
+      document.getElementById('updateForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fileInput = document.getElementById('firmware');
+        const statusDiv = document.getElementById('updateStatus');
+        const submitBtn = this.querySelector('button[type="submit"]');
+
+        if (fileInput.files.length === 0) {
+          statusDiv.textContent = 'Bitte eine Datei auswählen';
+          statusDiv.style.color = '#dc2626';
+          return;
+        }
+
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Lade hoch...';
+        statusDiv.textContent = 'Firmware wird hochgeladen...';
+        statusDiv.style.color = '#64748b';
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/update', true);
+
+        xhr.upload.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            statusDiv.textContent = 'Hochladen: ' + percent + '%';
+          }
+        };
+
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            statusDiv.textContent = 'Update erfolgreich! ESP startet neu...';
+            statusDiv.style.color = '#166534';
+            submitBtn.textContent = 'Erfolgreich!';
+          } else {
+            statusDiv.textContent = 'Update fehlgeschlagen!';
+            statusDiv.style.color = '#dc2626';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Firmware hochladen';
+          }
+        };
+
+        xhr.onerror = function() {
+          statusDiv.textContent = 'Verbindungsfehler!';
+          statusDiv.style.color = '#dc2626';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Firmware hochladen';
+        };
+
+        xhr.send(formData);
+      });
+    </script>
+
+    <hr class="divider">
+
+    <!-- WLAN vergessen -->
+    <form action="/reset" method="POST">
+      <button type="submit" class="btn btn-danger">Einstellungen zurücksetzen</button>
+    </form>
+
+  </div>
+</body>
+</html>
