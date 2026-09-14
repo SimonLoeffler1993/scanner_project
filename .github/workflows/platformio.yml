@@ -34,7 +34,7 @@ jobs:
       - name: Prepare Firmware Files
         run: |
           mkdir -p bin
-          cp .pio/build/seeed_xiao_esp32s3/firmware.bin bin/firmware_esp32s3.bin
+          cp .pio/build/esp32s3-n16r8/firmware.bin bin/firmware_esp32s3.bin
           ls -lh bin/
       
       - name: Generate Version
