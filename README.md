@@ -82,6 +82,8 @@ Eingetragen wird nur die **Server-Adresse** des Backends (z. B. `http://192.168.
 
 Der Scanner liefert unter `http://<IP>/health` seinen Zustand als JSON (HTTP 200 wenn alles ok, sonst 503).
 
+Der Healthcheck meldet den Scanner dabei mit Name, Modus, Firmware, IP und USB-Scanner-Status beim Backend an (`POST /api/v1/scanner/skiscanner/melden`). Das Center zeigt so in der Hardware-Scanner-Ansicht, welche Scanner verbunden sind.
+
 ## Troubleshooting
 
 | Problem                        | Lösung                                              |

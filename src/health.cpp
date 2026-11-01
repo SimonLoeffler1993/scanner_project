@@ -2,6 +2,8 @@
 #include "einstellungen.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include "scanner.h"
 
 static const uint32_t INTERVALL_OK_MS     = 30000;
 static const uint32_t INTERVALL_FEHLER_MS = 10000;
@@ -13,12 +15,24 @@ static volatile uint32_t letzte_pruefung_ms = 0;
 static volatile bool     schon_geprueft     = false;
 static TaskHandle_t      health_task        = nullptr;
 
+// Meldet den Scanner beim Backend an (Anzeige "verbunden" im Center) und prüft dabei API und Datenbank
 static void pruefen() {
+    AppConfig cfg = einstellungen_laden();
+    JsonDocument meldung;
+    meldung["name"]        = cfg.name;
+    meldung["modus"]       = cfg.modus;
+    meldung["firmware"]    = FIRMWARE_VERSION;
+    meldung["ip"]          = WiFi.localIP().toString();
+    meldung["usb_scanner"] = scanner_connected;
+    String body;
+    serializeJson(meldung, body);
+
     HTTPClient http;
     http.setTimeout(TIMEOUT_MS);
     http.setConnectTimeout(TIMEOUT_MS);
-    http.begin(api_url("/api/v1/health"));
-    int code = http.GET();
+    http.begin(api_url("/api/v1/scanner/skiscanner/melden"));
+    http.addHeader("Content-Type", "application/json");
+    int code = http.POST(body);
     http.end();
 
     bool ok = code == 200;

@@ -64,6 +64,13 @@ void loop() {
     bool api_ok           = health_api_ok();
     bool all_ok           = scanner_connected && wifi_connected && !ap_mode && api_configured() && api_ok;
 
+    // USB-Scanner ein- oder ausgesteckt: gleich beim Backend melden, damit das Center es sofort zeigt
+    static bool scanner_vorher = scanner_connected;
+    if (scanner_connected != scanner_vorher) {
+        scanner_vorher = scanner_connected;
+        health_jetzt_pruefen();
+    }
+
     // Beim ersten Loop-Durchlauf sofort Status setzen
     if (first_loop) {
         first_loop = false;
