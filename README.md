@@ -48,6 +48,31 @@ Länge: 34 Zeichen
 
 ---
 
+## Modi
+
+| Modus | trigger | Erkannte Etiketten | Wirkung |
+|---|---|---|---|
+| Fertigstellen | 1 | nur Service-Etiketten | Ski wird im Skiservice Center ausgewählt und nach dem Countdown fertig gestellt |
+| Bindung prüfen | 2 | Service- und Verleih-Etiketten | Bindung wird auf geprüft gesetzt |
+| Bearbeitungsstand | 0 | – | noch ohne Funktion |
+
+Eingetragen wird nur die **Server-Adresse** des Backends (z. B. `http://192.168.1.10:8000`), die Pfade ergänzt die Firmware.
+
+## Status-LED
+
+| LED | Bedeutung |
+|---|---|
+| dauerhaft grün | alles bereit |
+| blinkt rot | kein USB-Scanner |
+| blinkt blau (langsam) | Einrichtungsmodus, WLAN `Skiscanner-Config` (Passwort `12345678`) |
+| blinkt grün | keine WLAN-Verbindung |
+| blinkt orange | keine Server-Adresse eingetragen |
+| blinkt lila | API nicht erreichbar (Healthcheck alle 30 s, nach Fehler alle 10 s) |
+| nach Scan 2× grün kurz | Scan übernommen |
+| nach Scan 2× rot kurz | Scan abgelehnt (z. B. Verleih-Etikett im Modus Fertigstellen) oder API-Fehler |
+
+Der Scanner liefert unter `http://<IP>/health` seinen Zustand als JSON (HTTP 200 wenn alles ok, sonst 503).
+
 ## Troubleshooting
 
 | Problem                        | Lösung                                              |

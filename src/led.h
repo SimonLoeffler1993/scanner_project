@@ -8,6 +8,7 @@ void led_update();
 void led_blink_red_twice_start();
 void led_blink_blue_twice_slow_start();
 void led_blink_orange_twice_start(); 
+void led_blink_purple_twice_start();  // API nicht erreichbar (Healthcheck)
 void led_blink_green_twice_start();
 void led_blink_red_twice_start_fast();
 bool led_blink_done();

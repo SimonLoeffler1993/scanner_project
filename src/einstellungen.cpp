@@ -17,8 +17,16 @@ static String server_bereinigen(String url) {
 // Zwischenspeicher, damit loop() nicht bei jedem Durchlauf das NVS liest
 static AppConfig cache;
 static bool cache_gueltig = false;
+// Webserver, loop() und Health-Task lesen gleichzeitig
+static SemaphoreHandle_t sperre = nullptr;
+
+struct Sperre {
+    Sperre()  { if (sperre) xSemaphoreTake(sperre, portMAX_DELAY); }
+    ~Sperre() { if (sperre) xSemaphoreGive(sperre); }
+};
 
 AppConfig einstellungen_laden() {
+    Sperre s;
     if (cache_gueltig) return cache;
     AppConfig cfg;
     Preferences prefs;
@@ -35,6 +43,7 @@ AppConfig einstellungen_laden() {
 }
 
 void einstellungen_speichern(const AppConfig &cfg) {
+    Sperre s;
     Preferences prefs;
     prefs.begin(NAMENSRAUM, false);
     prefs.putString("ssid", cfg.ssid);
@@ -47,6 +56,7 @@ void einstellungen_speichern(const AppConfig &cfg) {
 }
 
 void einstellungen_loeschen() {
+    Sperre s;
     Preferences prefs;
     prefs.begin(NAMENSRAUM, false);
     prefs.clear();
@@ -76,6 +86,7 @@ static void alte_config_uebernehmen() {
 }
 
 void einstellungen_init() {
+    if (!sperre) sperre = xSemaphoreCreateMutex();
     alte_config_uebernehmen();
 }
 

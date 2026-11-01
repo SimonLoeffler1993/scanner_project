@@ -192,12 +192,55 @@
       </div>
     </div>
 
-    <div class="info-box">
+    <!-- Status, wird alle 5 Sekunden über /health aktualisiert -->
+    <div class="info-box" id="status">
       <div class="info-row">
         <span class="label">USB Scanner</span>
-        <strong>%USB_SCANNER%</strong>
+        <strong id="st-scanner">%USB_SCANNER%</strong>
+      </div>
+      <div class="info-row">
+        <span class="label">WLAN-Signal</span>
+        <strong id="st-wlan">–</strong>
+      </div>
+      <div class="info-row">
+        <span class="label">API</span>
+        <strong id="st-api">–</strong>
+      </div>
+      <div class="info-row">
+        <span class="label">Firmware</span>
+        <strong id="st-firmware">–</strong>
       </div>
     </div>
+
+    <script>
+      function setze(id, text, ok) {
+        const el = document.getElementById(id);
+        el.textContent = text;
+        el.style.color = ok === undefined ? '' : (ok ? '#166534' : '#dc2626');
+      }
+      function signal(rssi) {
+        if (rssi >= -60) return 'gut';
+        if (rssi >= -75) return 'mittel';
+        return 'schwach';
+      }
+      function statusLaden() {
+        fetch('/health')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            setze('st-scanner', d.scanner_verbunden ? 'Verbunden' : 'Nicht verbunden', d.scanner_verbunden);
+            setze('st-wlan', d.wlan.verbunden ? signal(d.wlan.rssi) + ' (' + d.wlan.rssi + ' dBm)' : 'Nicht verbunden', d.wlan.verbunden && d.wlan.rssi >= -75);
+            let api;
+            if (!d.server_url) api = 'Keine Server-Adresse';
+            else if (d.api.vor_s < 0) api = 'Noch nicht geprüft';
+            else api = (d.api.ok ? 'Erreichbar' : 'Nicht erreichbar (' + d.api.http_code + ')') + ', vor ' + d.api.vor_s + ' s';
+            setze('st-api', api, d.api.ok);
+            setze('st-firmware', d.firmware);
+          })
+          .catch(function() { setze('st-api', 'Scanner nicht erreichbar', false); });
+      }
+      statusLaden();
+      setInterval(statusLaden, 5000);
+    </script>
 
     <hr class="divider">
 

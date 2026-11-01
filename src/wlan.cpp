@@ -1,6 +1,7 @@
 #include "wlan.h"
 #include "scanner.h"
 #include "einstellungen.h"
+#include "health.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
@@ -84,6 +85,33 @@ static void registerRoutes() {
         }
     });
 
+    // /health – Zustand des Scanners als JSON (für Statusanzeige und Monitoring)
+    server.on("/health", HTTP_GET, [](AsyncWebServerRequest *request) {
+        AppConfig cfg = einstellungen_laden();
+        bool verbunden = WiFi.status() == WL_CONNECTED;
+        JsonDocument doc;
+        doc["firmware"]          = FIRMWARE_VERSION;
+        doc["uptime_s"]          = millis() / 1000;
+        doc["scanner_verbunden"] = scanner_connected;
+        doc["modus"]             = cfg.modus;
+        doc["name"]              = cfg.name;
+        doc["server_url"]        = cfg.serverUrl;
+        JsonObject wlan = doc["wlan"].to<JsonObject>();
+        wlan["verbunden"] = verbunden;
+        wlan["ssid"]      = cfg.ssid;
+        wlan["rssi"]      = verbunden ? WiFi.RSSI() : 0;
+        wlan["ip"]        = verbunden ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
+        JsonObject api = doc["api"].to<JsonObject>();
+        api["ok"]        = health_api_ok();
+        api["http_code"] = health_http_code();
+        api["vor_s"]     = health_vor_sekunden();
+        bool alles_ok = verbunden && scanner_connected && health_api_ok();
+        doc["status"] = alles_ok ? "ok" : "fehler";
+        String json;
+        serializeJson(doc, json);
+        request->send(alles_ok ? 200 : 503, "application/json", json);
+    });
+
     // /info – IP als JSON
     server.on("/info", HTTP_GET, [](AsyncWebServerRequest *request) {
         String json = "{\"ip\":\"" + WiFi.localIP().toString() + "\"}";
@@ -112,6 +140,7 @@ static void registerRoutes() {
         AppConfig cfg = einstellungen_laden();  // bestehende WLAN-Einstellungen behalten
         api_felder_uebernehmen(request, cfg);
         einstellungen_speichern(cfg);
+        health_jetzt_pruefen();
         request->redirect("/");
     });
 
