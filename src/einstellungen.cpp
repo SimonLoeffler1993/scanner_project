@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
+#include <esp_partition.h>
 
 static const char *NAMENSRAUM = "scanner";
 
@@ -85,8 +86,40 @@ static void alte_config_uebernehmen() {
     Serial.println("[CONFIG] Alte /config.json ins NVS übernommen");
 }
 
+// Einrichtung aus dem Webflasher übernehmen: Partition "wcfg" enthält "WCFG" + JSON + \0.
+// Danach wird sie gelöscht, damit ein Neustart später geänderte Einstellungen nicht überschreibt.
+static void webflasher_einrichtung_uebernehmen() {
+    const esp_partition_t *teil = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, (esp_partition_subtype_t)0x40, "wcfg");
+    if (!teil) return;
+
+    const size_t groesse = 4096;
+    char *puffer = (char *)malloc(groesse + 1);
+    if (!puffer) return;
+    bool gelesen = esp_partition_read(teil, 0, puffer, groesse) == ESP_OK;
+    puffer[groesse] = '\0';
+
+    if (gelesen && memcmp(puffer, "WCFG", 4) == 0) {
+        JsonDocument doc;
+        if (!deserializeJson(doc, puffer + 4)) {
+            AppConfig cfg = einstellungen_laden();
+            if (doc["ssid"].is<const char *>())       cfg.ssid      = doc["ssid"].as<String>();
+            if (doc["password"].is<const char *>())   cfg.password  = doc["password"].as<String>();
+            if (doc["server_url"].is<const char *>()) cfg.serverUrl = doc["server_url"].as<String>();
+            if (doc["name"].is<const char *>())       cfg.name      = doc["name"].as<String>();
+            if (doc["modus"].is<int>())               cfg.modus     = doc["modus"].as<int>();
+            einstellungen_speichern(cfg);
+            Serial.println("[CONFIG] Einrichtung aus dem Webflasher übernommen");
+        } else {
+            Serial.println("[CONFIG] Einrichtung aus dem Webflasher ungültig");
+        }
+        esp_partition_erase_range(teil, 0, teil->size);
+    }
+    free(puffer);
+}
+
 void einstellungen_init() {
     if (!sperre) sperre = xSemaphoreCreateMutex();
+    webflasher_einrichtung_uebernehmen();
     alte_config_uebernehmen();
 }
 

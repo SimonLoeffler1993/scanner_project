@@ -309,7 +309,7 @@
     <p class="section-title">Firmware Update</p>
     <form id="updateForm" enctype="multipart/form-data">
       <div class="field">
-        <label for="firmware">Firmware-Datei (.bin)</label>
+        <label for="firmware">firmware.bin oder littlefs.bin</label>
         <input id="firmware" type="file" name="firmware" accept=".bin" required>
       </div>
       <button type="submit" class="btn btn-primary">Firmware hochladen</button>
@@ -341,7 +341,8 @@
         statusDiv.style.color = '#64748b';
 
         const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/update', true);
+        // littlefs.bin = Konfigurationsseiten (Dateisystem), sonst Firmware
+        xhr.open('POST', /littlefs/i.test(file.name) ? '/update?fs=1' : '/update', true);
 
         xhr.upload.onprogress = function(e) {
           if (e.lengthComputable) {

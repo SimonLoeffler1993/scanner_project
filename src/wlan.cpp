@@ -50,7 +50,8 @@ static void api_felder_uebernehmen(AsyncWebServerRequest *request, AppConfig &cf
 
 static void registerRoutes() {
 
-    // /update – OTA Firmware Update (POST)
+    // /update – OTA Update (POST): Firmware, mit ?fs=1 das LittleFS-Image (Konfigurationsseiten).
+    // Die Einstellungen liegen im NVS und bleiben in beiden Fällen erhalten.
     server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
         // Anfrage-Handler nach dem Upload
         if (Update.hasError()) {
@@ -63,24 +64,23 @@ static void registerRoutes() {
     }, [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         // Upload-Handler
         if (!index) {
-            Serial.printf("Update gestartet: %s\n", filename.c_str());
-            // Update starten mit 16MB Flash-Größe (passend zur Konfiguration)
-            if (Update.begin(16 * 1024 * 1024)) {
-                Serial.println("Update gestartet");
-            } else {
-                Serial.println("Update Fehler beim Starten");
+            int ziel = request->hasParam("fs") ? U_SPIFFS : U_FLASH;
+            Serial.printf("Update gestartet: %s (%s)\n", filename.c_str(), ziel == U_SPIFFS ? "Dateisystem" : "Firmware");
+            if (ziel == U_SPIFFS) LittleFS.end();
+            if (!Update.begin(UPDATE_SIZE_UNKNOWN, ziel)) {
+                Update.printError(Serial);
             }
         }
 
-        if (Update.write(data, len) != len) {
-            Serial.println("Update Fehler beim Schreiben");
+        if (Update.isRunning() && Update.write(data, len) != len) {
+            Update.printError(Serial);
         }
 
         if (final) {
             if (Update.end(true)) {
                 Serial.printf("Update erfolgreich: %u Bytes\n", index + len);
             } else {
-                Serial.println("Update fehlgeschlagen");
+                Update.printError(Serial);
             }
         }
     });
