@@ -1,103 +1,21 @@
 #include "wlan.h"
 #include "scanner.h"
+#include "einstellungen.h"
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <Update.h>
-#include <esp_flash.h>
 
 static AsyncWebServer server(80);
 
-// ---------------------------------------------------------------
-// Config laden / speichern
-// ---------------------------------------------------------------
-
-struct AppConfig {
-    String ssid;
-    String password;
-    String apiUrl;
-    String apiName;
-    int    apiTrigger = 0;
-};
-
-static bool loadConfig(AppConfig &cfg) {
-    File f = LittleFS.open("/config.json", "r");
-    if (!f) return false;
-
-    JsonDocument doc;
-    if (deserializeJson(doc, f)) { f.close(); return false; }
-
-    cfg.ssid       = doc["ssid"]        | "";
-    cfg.password   = doc["password"]    | "";
-    cfg.apiUrl     = doc["api_url"]     | "";
-    cfg.apiName    = doc["api_name"]    | "";
-    cfg.apiTrigger = doc["api_trigger"] | 0;
-    f.close();
-    return cfg.ssid.length() > 0;
-}
-
-static void saveConfig(const AppConfig &cfg) {
-    File f = LittleFS.open("/config.json", "w");
-    if (!f) return;
-
-    JsonDocument doc;
-    doc["ssid"]        = cfg.ssid;
-    doc["password"]    = cfg.password;
-    doc["api_url"]     = cfg.apiUrl;
-    doc["api_name"]    = cfg.apiName;
-    doc["api_trigger"] = cfg.apiTrigger;
-    serializeJson(doc, f);
-    f.close();
-}
-
 bool api_configured() {
-    AppConfig cfg;
-    return loadConfig(cfg) && cfg.apiUrl.length() > 0;
+    return server_konfiguriert();
 }
 
-// ---------------------------------------------------------------
-// WLAN-Konfiguration aus Flash lesen (für Webflasher-Integration)
-// ---------------------------------------------------------------
-bool loadFlashWLANConfig(String &ssid, String &password) {
-    // Die WLAN-Konfiguration wird am Ende der Firmware erwartet
-    // Wir suchen nach dem Magic-Marker "WCFG"
-    const uint32_t search_start = 0x300000; // Suche ab 3MB beginnen
-    const uint32_t search_end = 0x3F0000; // Bis kurz vor Ende
-
-    for (uint32_t addr = search_start; addr < search_end; addr += 4096) {
-        uint8_t buffer[256];
-        esp_err_t err = esp_flash_read(NULL, buffer, addr, sizeof(buffer));
-
-        if (err == ESP_OK) {
-            // Nach Magic-Marker suchen
-            if (buffer[0] == 'W' && buffer[1] == 'C' && buffer[2] == 'F' && buffer[3] == 'G') {
-                Serial.printf("[FLASH] WLAN-Konfiguration gefunden bei 0x%08X\n", addr);
-
-                // WLAN-Konfiguration als JSON lesen
-                const char* jsonStart = (const char*)(buffer + 4);
-                String jsonStr = String(jsonStart);
-
-                // JSON parsen
-                JsonDocument doc;
-                if (deserializeJson(doc, jsonStr) == DeserializationError::Ok) {
-                    ssid = doc["ssid"] | "";
-                    password = doc["password"] | "";
-                    bool configured = doc["configured"] | false;
-
-                    if (configured && ssid.length() > 0) {
-                        Serial.printf("[FLASH] SSID: %s\n", ssid.c_str());
-                        Serial.println("[FLASH] WLAN-Konfiguration geladen");
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    Serial.println("[FLASH] Keine WLAN-Konfiguration im Flash gefunden");
-    return false;
+static String modus_selected(const AppConfig &cfg, int modus) {
+    return cfg.modus == modus ? "selected" : "";
 }
 
 // ---------------------------------------------------------------
@@ -105,17 +23,24 @@ bool loadFlashWLANConfig(String &ssid, String &password) {
 // ---------------------------------------------------------------
 
 static String processTemplate(const String &var) {
-    AppConfig cfg;
-    loadConfig(cfg);
+    AppConfig cfg = einstellungen_laden();
 
     if (var == "IP_ADDRESS")   return WiFi.localIP().toString();
     if (var == "WLAN_SSID")    return cfg.ssid;
     if (var == "USB_SCANNER")  return scanner_connected ? "Verbunden" : "Nicht verbunden";
-    if (var == "API_URL")      return cfg.apiUrl;
-    if (var == "API_NAME")     return cfg.apiName;
-    if (var == "API_TRIGGER_0") return cfg.apiTrigger == 0 ? "selected" : "";
-    if (var == "API_TRIGGER_1") return cfg.apiTrigger == 1 ? "selected" : "";
+    if (var == "SERVER_URL")   return cfg.serverUrl;
+    if (var == "API_NAME")     return cfg.name;
+    if (var == "API_TRIGGER_0") return modus_selected(cfg, MODUS_BEARBEITUNG);
+    if (var == "API_TRIGGER_1") return modus_selected(cfg, MODUS_FERTIG);
+    if (var == "API_TRIGGER_2") return modus_selected(cfg, MODUS_BINDUNG);
     return "";
+}
+
+// Server-Adresse, Name und Modus aus einem Formular übernehmen (nur vorhandene Felder)
+static void api_felder_uebernehmen(AsyncWebServerRequest *request, AppConfig &cfg) {
+    if (request->hasParam("server_url", true))  cfg.serverUrl = request->getParam("server_url", true)->value();
+    if (request->hasParam("api_name", true))    cfg.name      = request->getParam("api_name", true)->value();
+    if (request->hasParam("api_trigger", true)) cfg.modus     = request->getParam("api_trigger", true)->value().toInt();
 }
 
 // ---------------------------------------------------------------
@@ -171,11 +96,12 @@ static void registerRoutes() {
             request->send(400, "text/plain", "Fehlende Parameter");
             return;
         }
-        AppConfig cfg;
-        loadConfig(cfg);  // bestehende API-Settings behalten
+        AppConfig cfg = einstellungen_laden();  // bestehende API-Einstellungen behalten
         cfg.ssid     = request->getParam("ssid", true)->value();
         cfg.password = request->getParam("password", true)->value();
-        saveConfig(cfg);
+        // Im Einrichtungsmodus kommen Server-Adresse, Name und Modus im selben Formular
+        api_felder_uebernehmen(request, cfg);
+        einstellungen_speichern(cfg);
         request->send(200, "text/html", "<h2>Gespeichert! ESP startet neu...</h2>");
         delay(1500);
         ESP.restart();
@@ -183,37 +109,44 @@ static void registerRoutes() {
 
     // /api-save – API-Einstellungen speichern
     server.on("/api-save", HTTP_POST, [](AsyncWebServerRequest *request) {
-        AppConfig cfg;
-        loadConfig(cfg);  // bestehende WLAN-Settings behalten
-        cfg.apiUrl     = request->hasParam("api_url",  true) ? request->getParam("api_url",  true)->value() : "";
-        cfg.apiName    = request->hasParam("api_name", true) ? request->getParam("api_name", true)->value() : "";
-        cfg.apiTrigger = request->hasParam("api_trigger", true) ? request->getParam("api_trigger", true)->value().toInt() : 0;
-        saveConfig(cfg);
-        request->send(200, "text/html", "<h2>API-Einstellungen gespeichert!</h2>");
+        AppConfig cfg = einstellungen_laden();  // bestehende WLAN-Einstellungen behalten
+        api_felder_uebernehmen(request, cfg);
+        einstellungen_speichern(cfg);
+        request->redirect("/");
     });
 
-    // /testapi – API einmalig aufrufen
+    // /testapi – Erreichbarkeit der API über den Health-Endpunkt prüfen
     server.on("/testapi", HTTP_GET, [](AsyncWebServerRequest *request) {
-        AppConfig cfg;
-        if (!loadConfig(cfg) || cfg.apiUrl.isEmpty()) {
-            request->send(400, "text/plain", "Keine API-URL konfiguriert");
+        if (!server_konfiguriert()) {
+            request->send(400, "application/json", "{\"ok\":false,\"meldung\":\"Keine Server-Adresse eingetragen\"}");
             return;
         }
         HTTPClient http;
-        http.begin(cfg.apiUrl);
-        http.addHeader("Content-Type", "application/json");
-        String body = "{\"name\":\"" + cfg.apiName + "\",\"trigger\":" + cfg.apiTrigger + ",\"test\":true}";
-        int code = http.POST(body);
-        String response = http.getString();
+        http.setTimeout(3000);
+        http.begin(api_url("/api/v1/health"));
+        int code = http.GET();
+        String antwort = code > 0 ? http.getString() : "";
         http.end();
-        request->send(200, "application/json",
-            "{\"code\":" + String(code) + ",\"response\":\"" + response + "\"}");
+
+        JsonDocument ergebnis;
+        ergebnis["ok"] = code == 200;
+        ergebnis["http_code"] = code;
+        if (code > 0) {
+            JsonDocument health;
+            if (!deserializeJson(health, antwort)) ergebnis["status"] = health["status"];
+            ergebnis["meldung"] = code == 200 ? "API erreichbar" : "API antwortet mit Fehler";
+        } else {
+            ergebnis["meldung"] = String("Keine Verbindung: ") + HTTPClient::errorToString(code);
+        }
+        String json;
+        serializeJson(ergebnis, json);
+        request->send(200, "application/json", json);
     });
 
     // /reset – alles löschen → Neustart
     server.on("/reset", HTTP_POST, [](AsyncWebServerRequest *request) {
-        LittleFS.remove("/config.json");
-        request->send(200, "text/plain", "OK");
+        einstellungen_loeschen();
+        request->send(200, "text/html", "<h2>Einstellungen gelöscht, Scanner startet neu...</h2>");
         delay(1000);
         ESP.restart();
     });
@@ -224,19 +157,8 @@ static void registerRoutes() {
 // ---------------------------------------------------------------
 
 static bool connectWiFi() {
-    AppConfig cfg;
-    bool useFlashConfig = false;
-
-    // Zuerst versuchen, WLAN-Konfiguration aus Flash zu laden
-    String flashSsid, flashPassword;
-    if (loadFlashWLANConfig(flashSsid, flashPassword)) {
-        Serial.println("[WLAN] Verwende Flash-WLAN-Konfiguration");
-        cfg.ssid = flashSsid;
-        cfg.password = flashPassword;
-        useFlashConfig = true;
-    } else if (!loadConfig(cfg)) {
-        return false;
-    }
+    AppConfig cfg = einstellungen_laden();
+    if (cfg.ssid.isEmpty()) return false;
 
     Serial.printf("Verbinde mit: %s\n", cfg.ssid.c_str());
     WiFi.mode(WIFI_STA);
@@ -251,12 +173,6 @@ static bool connectWiFi() {
 
     if (WiFi.status() == WL_CONNECTED) {
         Serial.printf("\nVerbunden! IP: %s\n", WiFi.localIP().toString().c_str());
-
-        // Wenn Flash-Konfiguration verwendet wurde, speichere sie in LittleFS
-        if (useFlashConfig) {
-            Serial.println("[WLAN] Speichere Flash-Konfiguration in LittleFS");
-            saveConfig(cfg);
-        }
 
         // Template-Prozessor für Platzhalter in connected.html
         server.serveStatic("/", LittleFS, "/")
@@ -278,25 +194,42 @@ static bool connectWiFi() {
 // Globale Funktion zum API-Aufruf mit gescanntem Code
 // ----------------------------------------------------------------
 bool send_to_api(const char* code) {
-    AppConfig cfg;
-    if (!loadConfig(cfg) || cfg.apiUrl.isEmpty()) {
-        Serial.println("[API] Keine URL konfiguriert.");
+    AppConfig cfg = einstellungen_laden();
+    if (cfg.serverUrl.isEmpty()) {
+        Serial.println("[API] Keine Server-Adresse eingetragen.");
         return false;
     }
 
+    // Mit ArduinoJson, damit Anführungszeichen o.ä. im Code das JSON nicht zerstören
+    JsonDocument anfrage;
+    anfrage["code"]    = code;
+    anfrage["name"]    = cfg.name;
+    anfrage["trigger"] = cfg.modus;
+    String body;
+    serializeJson(anfrage, body);
+
     HTTPClient http;
-    http.begin(cfg.apiUrl);
+    http.setTimeout(5000);
+    http.begin(api_url("/api/v1/scanner/skiscanner/scan"));
     http.addHeader("Content-Type", "application/json");
-
-    String body = "{\"code\":\"" + String(code) + "\""
-                + ",\"name\":\""    + cfg.apiName    + "\""
-                + ",\"trigger\":"   + cfg.apiTrigger
-                + "}";
-
     int code_http = http.POST(body);
-    Serial.printf("[API] Gesendet → HTTP %d\n", code_http);
+    String antwort = code_http > 0 ? http.getString() : "";
     http.end();
-    return code_http >= 200 && code_http < 300;
+
+    if (code_http < 200 || code_http >= 300) {
+        Serial.printf("[API] Fehler → HTTP %d %s\n", code_http, code_http < 0 ? HTTPClient::errorToString(code_http).c_str() : antwort.c_str());
+        return false;
+    }
+
+    // Die API antwortet mit {success, message}: z.B. falsches Etikett für den Modus → success false
+    JsonDocument ergebnis;
+    if (deserializeJson(ergebnis, antwort)) {
+        Serial.printf("[API] Unerwartete Antwort: %s\n", antwort.c_str());
+        return false;
+    }
+    bool ok = ergebnis["success"] | false;
+    Serial.printf("[API] %s: %s\n", ok ? "OK" : "Abgelehnt", (const char*)(ergebnis["message"] | ""));
+    return ok;
 }
 
 // ---------------------------------------------------------------
@@ -322,6 +255,7 @@ void wlan_init() {
         Serial.println("LittleFS Mount Failed");
         return;
     }
+    einstellungen_init();
     if (!connectWiFi()) {
         startAccessPoint();
     }

@@ -142,6 +142,22 @@
         <label for="password">Passwort</label>
         <input id="password" type="password" name="password" placeholder="Passwort" required>
       </div>
+      <div class="field">
+        <label for="server_url">Server-Adresse</label>
+        <input id="server_url" type="url" name="server_url" placeholder="http://192.168.1.10:8000">
+      </div>
+      <div class="field">
+        <label for="api_name">Name des Scanners</label>
+        <input id="api_name" type="text" name="api_name" placeholder="z.B. Werkstatt">
+      </div>
+      <div class="field">
+        <label for="api_trigger">Modus</label>
+        <select id="api_trigger" name="api_trigger">
+          <option value="1" selected>Fertigstellen (Service-Etiketten)</option>
+          <option value="2">Bindung prüfen (Service- und Verleih-Etiketten)</option>
+          <option value="0">Bearbeitungsstand</option>
+        </select>
+      </div>
       <button type="submit">Speichern und verbinden</button>
     </form>
 

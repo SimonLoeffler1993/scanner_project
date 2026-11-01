@@ -217,30 +217,48 @@
 
     <hr class="divider">
 
-    <!-- API Endpunkt -->
-    <p class="section-title">API-Einstellungen</p>
+    <!-- API -->
+    <p class="section-title">Server und Modus</p>
     <form action="/api-save" method="POST">
       <div class="field">
-        <label for="api_url">Endpunkt-URL</label>
-        <input id="api_url" type="url" name="api_url" placeholder="https://beispiel.de/api/event" value="%API_URL%" required>
+        <label for="server_url">Server-Adresse</label>
+        <input id="server_url" type="url" name="server_url" placeholder="http://192.168.1.10:8000" value="%SERVER_URL%" required>
       </div>
       <div class="field">
-        <label for="api_name">Name <span style="font-weight:400;color:#94a3b8">(optional)</span></label>
-        <input id="api_name" type="text" name="api_name" placeholder="Name für die API-Integration" value="%API_NAME%">
+        <label for="api_name">Name des Scanners</label>
+        <input id="api_name" type="text" name="api_name" placeholder="z.B. Werkstatt" value="%API_NAME%">
       </div>
       <div class="field">
-        <label for="api_trigger">Funktion</label>
+        <label for="api_trigger">Modus</label>
         <select id="api_trigger" name="api_trigger">
-          <option value="0" %API_TRIGGER_0%>bearbeitungsstand</option>
-          <option value="1" %API_TRIGGER_1%>fertigstellen</option>
+          <option value="1" %API_TRIGGER_1%>Fertigstellen (Service-Etiketten)</option>
+          <option value="2" %API_TRIGGER_2%>Bindung prüfen (Service- und Verleih-Etiketten)</option>
+          <option value="0" %API_TRIGGER_0%>Bearbeitungsstand</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary">API-Einstellungen speichern</button>
+      <button type="submit" class="btn btn-primary">Speichern</button>
     </form>
 
-    <form action="/testapi" method="GET">
-      <button type="submit" class="btn btn-primary">API testen</button>
-    </form>
+    <button type="button" id="testApi" class="btn btn-primary">Verbindung zur API testen</button>
+    <div id="testErgebnis" style="margin-top: 0.5rem; font-size: 0.875rem;"></div>
+
+    <script>
+      document.getElementById('testApi').addEventListener('click', function() {
+        const ziel = document.getElementById('testErgebnis');
+        ziel.style.color = '#64748b';
+        ziel.textContent = 'Teste...';
+        fetch('/testapi')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            ziel.style.color = d.ok ? '#166534' : '#dc2626';
+            ziel.textContent = d.meldung + (d.http_code ? ' (HTTP ' + d.http_code + ')' : '');
+          })
+          .catch(function() {
+            ziel.style.color = '#dc2626';
+            ziel.textContent = 'Scanner nicht erreichbar';
+          });
+      });
+    </script>
 
     <hr class="divider">
 
