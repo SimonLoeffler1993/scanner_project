@@ -48,6 +48,15 @@ Länge: 34 Zeichen
 
 ---
 
+## Webflasher
+
+Der Webflasher (`webflasher/index.html`) wird vom Workflow zusammen mit der aktuellen Firmware auf **GitHub Pages** veröffentlicht (Repo → Settings → Pages → Source: „GitHub Actions“). Er läuft in Chrome oder Edge, der ESP32-S3 hängt dabei am **COM-Port**.
+
+- **Neuinstallation**: löscht den kompletten Flash und schreibt Bootloader, Partitionstabelle, Firmware und Konfigurationsseiten. WLAN, Server-Adresse, Name und Modus können direkt eingegeben werden, sie landen in der Partition `wcfg` und werden beim ersten Start übernommen. Nötig für neue Geräte und **einmalig für Geräte mit der alten Partitionstabelle**.
+- **Update**: schreibt nur Firmware und Konfigurationsseiten, die Einstellungen (NVS) bleiben erhalten.
+
+Statt der Online-Version können eigene Dateien gewählt werden (`scanner_vollstaendig.bin` bzw. `firmware.bin` + `littlefs.bin` aus dem Release). Lokal testen: `python tools/release.py <ordner>` nach dem Build, dann `webflasher/` und den Ordner als `firmware/` per `python -m http.server` ausliefern.
+
 ## Modi
 
 | Modus | trigger | Erkannte Etiketten | Wirkung |

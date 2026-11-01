@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skiscanner Webflasher</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --karte: #ffffff;
+      --text: #0f172a;
+      --leise: #64748b;
+      --rand: #e2e8f0;
+      --feld: #ffffff;
+      --primaer: #2563eb;
+      --primaer-text: #ffffff;
+      --ok: #166534;
+      --ok-bg: #dcfce7;
+      --warn: #92400e;
+      --warn-bg: #fef3c7;
+      --fehler: #b91c1c;
+      --fehler-bg: #fee2e2;
+      --log-bg: #0f172a;
+      --log-text: #e2e8f0;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1120;
+        --karte: #111827;
+        --text: #e5e7eb;
+        --leise: #94a3b8;
+        --rand: #1f2937;
+        --feld: #0f172a;
+        --primaer: #3b82f6;
+        --ok: #86efac;
+        --ok-bg: #052e16;
+        --warn: #fcd34d;
+        --warn-bg: #3b2a06;
+        --fehler: #fca5a5;
+        --fehler-bg: #3f0d0d;
+        --log-bg: #020617;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px 16px;
+    }
+    .karte {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--karte);
+      border: 1px solid var(--rand);
+      border-radius: 14px;
+      padding: 28px;
+    }
+    header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1rem; margin-bottom: 10px; }
+    .unterzeile { color: var(--leise); font-size: 0.9rem; margin-bottom: 24px; }
+    .version { font-size: 0.8rem; color: var(--leise); border: 1px solid var(--rand); border-radius: 99px; padding: 2px 10px; }
+    section { border-top: 1px solid var(--rand); padding-top: 20px; margin-top: 20px; }
+    .schritt { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--primaer); color: var(--primaer-text); font-size: 0.75rem; margin-right: 8px; }
+    button {
+      font: inherit; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--rand); border-radius: 8px;
+      padding: 10px 16px; background: var(--feld); color: var(--text);
+    }
+    button.primaer { background: var(--primaer); border-color: var(--primaer); color: var(--primaer-text); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .zeile { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .reiter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .reiter button { text-align: left; padding: 12px 14px; }
+    .reiter button small { display: block; font-weight: 400; color: var(--leise); font-size: 0.8rem; }
+    .reiter button[aria-selected="true"] { border-color: var(--primaer); box-shadow: inset 0 0 0 1px var(--primaer); }
+    .felder { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .feld { display: flex; flex-direction: column; gap: 4px; }
+    .feld.breit { grid-column: 1 / -1; }
+    label { font-size: 0.85rem; font-weight: 600; }
+    input, select {
+      font: inherit; padding: 9px 11px; border-radius: 8px;
+      border: 1px solid var(--rand); background: var(--feld); color: var(--text);
+    }
+    .hinweis { font-size: 0.85rem; color: var(--leise); }
+    .box { border-radius: 8px; padding: 10px 12px; font-size: 0.875rem; margin: 12px 0; }
+    .box.warn { background: var(--warn-bg); color: var(--warn); }
+    .box.ok { background: var(--ok-bg); color: var(--ok); }
+    .box.fehler { background: var(--fehler-bg); color: var(--fehler); }
+    .quelle { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+    .quelle label { font-weight: 400; display: flex; gap: 8px; align-items: center; }
+    .eigen { display: none; margin-bottom: 14px; }
+    .eigen.sichtbar { display: grid; }
+    .fortschritt { height: 10px; border-radius: 99px; background: var(--rand); overflow: hidden; margin: 16px 0 8px; }
+    .fortschritt div { height: 100%; width: 0; background: var(--primaer); transition: width 0.2s; }
+    #log {
+      background: var(--log-bg); color: var(--log-text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem;
+      border-radius: 8px; padding: 10px 12px; height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+    }
+    #log .fehler { color: #fca5a5; }
+    #log .ok { color: #86efac; }
+    [hidden] { display: none !important; }
+    @media (max-width: 560px) {
+      .karte { padding: 18px; }
+      .felder, .reiter { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="karte">
+    <header>
+      <h1>Skiscanner Webflasher</h1>
+      <span class="version" id="version">Version wird geladen…</span>
+    </header>
+    <p class="unterzeile">Firmware für den ESP32-S3 Skiscanner direkt aus dem Browser aufspielen (Chrome oder Edge).</p>
+
+    <div class="box fehler" id="keinSerial" hidden>
+      Dieser Browser unterstützt kein Web Serial. Bitte Chrome oder Edge am Computer verwenden.
+    </div>
+
+    <section>
+      <h2><span class="schritt">1</span>Scanner verbinden</h2>
+      <p class="hinweis">Den ESP32-S3 über den <strong>COM-Port</strong> (UART) mit dem Computer verbinden, nicht über den USB-Port des Scanners. Wird er nicht erkannt: BOOT-Taster gedrückt halten und dabei verbinden.</p>
+      <div class="zeile" style="margin-top: 12px;">
+        <button class="primaer" id="verbinden">Verbinden</button>
+        <button id="trennen" disabled>Trennen</button>
+        <span class="hinweis" id="chip"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="schritt">2</span>Art auswählen</h2>
+      <div class="reiter" role="tablist">
+        <button role="tab" id="reiterNeu" aria-selected="true">Neuinstallation<small>Löscht alles, Einrichtung direkt hier</small></button>
+        <button role="tab" id="reiterUpdate" aria-selected="false">Update<small>Einstellungen bleiben erhalten</small></button>
+      </div>
+
+      <div class="quelle">
+        <label><input type="radio" name="quelle" value="aktuell" checked> <span id="quelleAktuell">Aktuelle Version</span></label>
+        <label><input type="radio" name="quelle" value="eigen"> Eigene Datei(en)</label>
+      </div>
+
+      <div id="bereichNeu">
+        <div class="felder eigen" id="eigenNeu">
+          <div class="feld breit">
+            <label for="dateiVoll">Vollständiges Image (scanner_vollstaendig.bin, ab 0x0)</label>
+            <input type="file" id="dateiVoll" accept=".bin">
+          </div>
+        </div>
+        <div class="box warn">Der Flash wird komplett gelöscht, alle Einstellungen gehen verloren.</div>
+        <p class="hinweis" style="margin-bottom: 12px;">Optional: Ist alles ausgefüllt, ist der Scanner nach dem Flashen sofort einsatzbereit. Sonst öffnet er das WLAN <strong>Skiscanner-Config</strong> zur Einrichtung.</p>
+        <div class="felder">
+          <div class="feld">
+            <label for="ssid">WLAN-Name</label>
+            <input id="ssid" autocomplete="off">
+          </div>
+          <div class="feld">
+            <label for="passwort">WLAN-Passwort</label>
+            <input id="passwort" type="password" autocomplete="new-password">
+          </div>
+          <div class="feld breit">
+            <label for="server">Server-Adresse</label>
+            <input id="server" type="url" placeholder="http://192.168.1.10:8000">
+          </div>
+          <div class="feld">
+            <label for="name">Name des Scanners</label>
+            <input id="name" placeholder="z.B. Werkstatt">
+          </div>
+          <div class="feld">
+            <label for="modus">Modus</label>
+            <select id="modus">
+              <option value="1">Fertigstellen (Service-Etiketten)</option>
+              <option value="2">Bindung prüfen (Service und Verleih)</option>
+              <option value="0">Bearbeitungsstand</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="bereichUpdate" hidden>
+        <div class="felder eigen" id="eigenUpdate">
+          <div class="feld">
+            <label for="dateiFirmware">firmware.bin</label>
+            <input type="file" id="dateiFirmware" accept=".bin">
+          </div>
+          <div class="feld">
+            <label for="dateiFs">littlefs.bin (optional)</label>
+            <input type="file" id="dateiFs" accept=".bin">
+          </div>
+        </div>
+        <div class="box ok">WLAN, Server-Adresse, Name und Modus bleiben erhalten. Firmware und Konfigurationsseiten werden ersetzt.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2><span class="schritt">3</span>Flashen</h2>
+      <div class="zeile">
+        <button class="primaer" id="flashen" disabled>Flashen</button>
+        <button id="logLeeren">Log leeren</button>
+      </div>
+      <div class="box fehler" id="fehler" hidden></div>
+      <div class="fortschritt"><div id="balken"></div></div>
+      <p class="hinweis" id="fortschrittText">Noch nicht gestartet</p>
+      <div id="log" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { ESPLoader, Transport } from "https://cdn.jsdelivr.net/npm/esptool-js@0.5.7/bundle.js";
+
+    // Offsets für eigene Dateien, müssen zu partitions.csv passen (bei "Aktuelle Version" aus manifest.json)
+    const STANDARD = {
+      boot_app0: 0xe000,
+      firmware: 0x10000,
+      littlefs: 0xC91000,
+      wcfg: { offset: 0xC90000, groesse: 0x1000 },
+    };
+    const BAUDRATE = 921600;
+
+    const $ = (id) => document.getElementById(id);
+    let manifest = null;
+    let transport = null;
+    let esploader = null;
+    let art = "neu";
+
+    function log(text, klasse = "") {
+      const zeile = document.createElement("div");
+      if (klasse) zeile.className = klasse;
+      zeile.textContent = `[${new Date().toLocaleTimeString("de-DE")}] ${text}`;
+      $("log").appendChild(zeile);
+      $("log").scrollTop = $("log").scrollHeight;
+    }
+
+    function fehler(text) {
+      $("fehler").hidden = !text;
+      $("fehler").textContent = text || "";
+      if (text) log(text, "fehler");
+    }
+
+    function fortschritt(anteil, text) {
+      $("balken").style.width = `${Math.round(anteil * 100)}%`;
+      $("fortschrittText").textContent = text;
+    }
+
+    // Block für die Partition "wcfg": "WCFG" + JSON + \0, Rest 0xFF (gelöschter Flash).
+    // Die Firmware übernimmt ihn beim ersten Start ins NVS und löscht die Partition.
+    function wcfgBlock(einrichtung, groesse) {
+      const daten = {};
+      for (const [schluessel, wert] of Object.entries(einrichtung)) {
+        if (wert !== "" && wert !== null && wert !== undefined) daten[schluessel] = wert;
+      }
+      if (!daten.ssid) return null;
+      const inhalt = new TextEncoder().encode("WCFG" + JSON.stringify(daten));
+      if (inhalt.length + 1 > groesse) throw new Error("Einrichtungsdaten sind zu lang.");
+      const block = new Uint8Array(groesse).fill(0xff);
+      block.set(inhalt, 0);
+      block[inhalt.length] = 0;
+      return block;
+    }
+    window.skiflasher = { wcfgBlock };
+
+    async function ladeManifest() {
+      try {
+        const antwort = await fetch("firmware/manifest.json", { cache: "no-store" });
+        if (!antwort.ok) throw new Error(`HTTP ${antwort.status}`);
+        manifest = await antwort.json();
+        $("version").textContent = `Firmware ${manifest.version}`;
+        $("quelleAktuell").textContent = `Aktuelle Version (${manifest.version})`;
+      } catch {
+        manifest = null;
+        $("version").textContent = "Keine Firmware online";
+        $("quelleAktuell").textContent = "Aktuelle Version (nicht verfügbar)";
+        document.querySelector('input[name="quelle"][value="aktuell"]').disabled = true;
+        document.querySelector('input[name="quelle"][value="eigen"]').checked = true;
+      }
+      quelleAnzeigen();
+    }
+
+    function quelle() {
+      return document.querySelector('input[name="quelle"]:checked').value;
+    }
+
+    function quelleAnzeigen() {
+      const eigen = quelle() === "eigen";
+      $("eigenNeu").classList.toggle("sichtbar", eigen);
+      $("eigenUpdate").classList.toggle("sichtbar", eigen);
+    }
+
+    function artWaehlen(neu) {
+      art = neu;
+      $("reiterNeu").setAttribute("aria-selected", String(neu === "neu"));
+      $("reiterUpdate").setAttribute("aria-selected", String(neu === "update"));
+      $("bereichNeu").hidden = neu !== "neu";
+      $("bereichUpdate").hidden = neu !== "update";
+      fehler("");
+    }
+
+    async function dateiLesen(input) {
+      const datei = input.files[0];
+      return datei ? new Uint8Array(await datei.arrayBuffer()) : null;
+    }
+
+    async function online(datei) {
+      const antwort = await fetch(`firmware/${datei}`, { cache: "no-store" });
+      if (!antwort.ok) throw new Error(`${datei} konnte nicht geladen werden (HTTP ${antwort.status}).`);
+      return new Uint8Array(await antwort.arrayBuffer());
+    }
+
+    // Liste der zu schreibenden Teile {name, offset, daten}
+    async function teileZusammenstellen() {
+      const teile = [];
+      if (art === "neu") {
+        if (quelle() === "aktuell") {
+          for (const e of manifest.neuinstallation) teile.push({ name: e.datei, offset: e.offset, daten: await online(e.datei) });
+        } else {
+          const voll = await dateiLesen($("dateiVoll"));
+          if (!voll) throw new Error("Bitte das vollständige Image auswählen.");
+          teile.push({ name: "scanner_vollstaendig.bin", offset: 0, daten: voll });
+        }
+        const server = $("server").value.trim();
+        if (server && !/^https?:\/\/[^/\s]+/i.test(server)) throw new Error("Die Server-Adresse muss mit http:// oder https:// beginnen.");
+        const wcfg = manifest?.wcfg ?? STANDARD.wcfg;
+        const block = wcfgBlock({
+          ssid: $("ssid").value.trim(),
+          password: $("passwort").value,
+          server_url: server,
+          name: $("name").value.trim(),
+          modus: Number($("modus").value),
+        }, wcfg.groesse);
+        if (block) {
+          teile.push({ name: "Einrichtung (wcfg)", offset: wcfg.offset, daten: block });
+        } else if (server || $("name").value.trim()) {
+          throw new Error("Für die Einrichtung bitte auch den WLAN-Namen angeben.");
+        }
+      } else {
+        if (quelle() === "aktuell") {
+          for (const e of manifest.update) teile.push({ name: e.datei, offset: e.offset, daten: await online(e.datei) });
+        } else {
+          const firmware = await dateiLesen($("dateiFirmware"));
+          if (!firmware) throw new Error("Bitte firmware.bin auswählen.");
+          // boot_app0 setzt otadata zurück, damit nach einem früheren OTA-Update wieder app0 startet
+          const bootApp0 = new Uint8Array(0x2000).fill(0xff);
+          teile.push({ name: "otadata zurücksetzen", offset: STANDARD.boot_app0, daten: bootApp0 });
+          teile.push({ name: "firmware.bin", offset: STANDARD.firmware, daten: firmware });
+          const fs = await dateiLesen($("dateiFs"));
+          if (fs) teile.push({ name: "littlefs.bin", offset: STANDARD.littlefs, daten: fs });
+        }
+      }
+      return teile;
+    }
+
+    async function verbinden() {
+      fehler("");
+      try {
+        const port = await navigator.serial.requestPort();
+        transport = new Transport(port, true);
+        esploader = new ESPLoader({
+          transport,
+          baudrate: BAUDRATE,
+          terminal: {
+            clean() {},
+            writeLine(text) { log(text); },
+            write(text) { if (text.trim()) log(text.trim()); },
+          },
+        });
+        log("Verbinde…");
+        const chip = await esploader.main();
+        $("chip").textContent = `Verbunden: ${chip}`;
+        log(`Verbunden mit ${chip}`, "ok");
+        if (!/ESP32-S3/i.test(chip)) fehler(`Erkannt wurde ${chip}, der Skiscanner verwendet einen ESP32-S3.`);
+        $("verbinden").disabled = true;
+        $("trennen").disabled = false;
+        $("flashen").disabled = false;
+      } catch (e) {
+        await trennen();
+        fehler(`Verbindung fehlgeschlagen: ${e.message ?? e}. Tipp: BOOT-Taster gedrückt halten und erneut verbinden.`);
+      }
+    }
+
+    async function trennen() {
+      try { await transport?.disconnect(); } catch { /* bereits getrennt */ }
+      transport = null;
+      esploader = null;
+      $("chip").textContent = "";
+      $("verbinden").disabled = false;
+      $("trennen").disabled = true;
+      $("flashen").disabled = true;
+    }
+
+    async function flashen() {
+      fehler("");
+      $("flashen").disabled = true;
+      $("trennen").disabled = true;
+      try {
+        fortschritt(0, "Dateien werden vorbereitet…");
+        const teile = await teileZusammenstellen();
+        for (const t of teile) log(`${t.name}: ${t.daten.length} Bytes an 0x${t.offset.toString(16)}`);
+        const gesamt = teile.reduce((s, t) => s + t.daten.length, 0);
+        const vorher = teile.map((_, i) => teile.slice(0, i).reduce((s, t) => s + t.daten.length, 0));
+
+        fortschritt(0, art === "neu" ? "Flash wird gelöscht…" : "Wird geschrieben…");
+        await esploader.writeFlash({
+          fileArray: teile.map((t) => ({ data: esploader.ui8ToBstr(t.daten), address: t.offset })),
+          flashSize: "keep",
+          flashMode: "keep",
+          flashFreq: "keep",
+          eraseAll: art === "neu",
+          compress: true,
+          reportProgress: (index, geschrieben, groesse) => {
+            const anteil = (vorher[index] + (geschrieben / groesse) * teile[index].daten.length) / gesamt;
+            fortschritt(anteil, `${teile[index].name}: ${Math.round((geschrieben / groesse) * 100)} %`);
+          },
+        });
+
+        fortschritt(1, "Fertig, Scanner startet neu");
+        log("Flashen abgeschlossen, starte neu…", "ok");
+        await esploader.after();
+        if (art === "neu") {
+          log($("ssid").value.trim()
+            ? "Der Scanner verbindet sich jetzt mit dem WLAN. Die IP steht im Router oder auf der seriellen Ausgabe."
+            : "Der Scanner öffnet jetzt das WLAN „Skiscanner-Config“ (Passwort 12345678), Einrichtung unter http://192.168.4.1", "ok");
+        } else {
+          log("Update fertig, alle Einstellungen sind erhalten.", "ok");
+        }
+      } catch (e) {
+        fortschritt(0, "Abgebrochen");
+        fehler(`Flashen fehlgeschlagen: ${e.message ?? e}`);
+      } finally {
+        await trennen();
+      }
+    }
+
+    if (!("serial" in navigator)) {
+      $("keinSerial").hidden = false;
+      $("verbinden").disabled = true;
+    }
+    $("verbinden").addEventListener("click", verbinden);
+    $("trennen").addEventListener("click", trennen);
+    $("flashen").addEventListener("click", flashen);
+    $("logLeeren").addEventListener("click", () => { $("log").innerHTML = ""; });
+    $("reiterNeu").addEventListener("click", () => artWaehlen("neu"));
+    $("reiterUpdate").addEventListener("click", () => artWaehlen("update"));
+    document.querySelectorAll('input[name="quelle"]').forEach((r) => r.addEventListener("change", quelleAnzeigen));
+    ladeManifest();
+  </script>
+</body>
+</html>
