@@ -15,6 +15,7 @@
 #include "scanner.h"
 #include "led.h"
 #include "wlan.h"
+#include "health.h"
 
 // Dateisytem neu aufspielen mit
 // platformio run --target uploadfs 
@@ -31,6 +32,7 @@ void setup()
     led_set_color(255, 0, 0);  // Initial Rot bis Status ermittelt wird
     scanner_init();
     wlan_init();
+    health_init();
 }
 
 // ---------------------------------------------------------------
@@ -59,7 +61,15 @@ void loop() {
 
     bool ap_mode          = (WiFi.getMode() == WIFI_AP);
     bool wifi_connected   = (WiFi.status() == WL_CONNECTED);
-    bool all_ok           = scanner_connected && wifi_connected && !ap_mode && api_configured();
+    bool api_ok           = health_api_ok();
+    bool all_ok           = scanner_connected && wifi_connected && !ap_mode && api_configured() && api_ok;
+
+    // USB-Scanner ein- oder ausgesteckt: gleich beim Backend melden, damit das Center es sofort zeigt
+    static bool scanner_vorher = scanner_connected;
+    if (scanner_connected != scanner_vorher) {
+        scanner_vorher = scanner_connected;
+        health_jetzt_pruefen();
+    }
 
     // Beim ersten Loop-Durchlauf sofort Status setzen
     if (first_loop) {
@@ -80,6 +90,9 @@ void loop() {
             status_led_set = false;
         } else if (!api_configured()) {
             led_blink_orange_twice_start();
+            status_led_set = false;
+        } else if (!api_ok) {
+            led_blink_purple_twice_start();
             status_led_set = false;
         }
         last_blink_trigger = millis();
@@ -102,6 +115,7 @@ void loop() {
             if (WiFi.status() == WL_CONNECTED) {
                 bool ok = send_to_api(buf);
                 ok ? led_blink_green_twice_start() : led_blink_red_twice_start_fast();
+                if (!ok) health_jetzt_pruefen();  // evtl. ist die API weg
             } else {
                 Serial.println("[SCAN] Kein WLAN – Code nicht gesendet.");
                 led_blink_red_twice_start();
