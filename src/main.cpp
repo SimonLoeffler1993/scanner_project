@@ -17,6 +17,9 @@
 #include "wlan.h"
 #include "health.h"
 
+// loop() sendet die Scans, bei https mit TLS-Handshake: die standardmäßigen 8 KB Stack sind dafür knapp
+SET_LOOP_TASK_STACK_SIZE(16 * 1024);
+
 // Dateisytem neu aufspielen mit
 // platformio run --target uploadfs 
 // wird nötig wen data Datein geändert wurden.
