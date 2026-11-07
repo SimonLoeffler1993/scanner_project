@@ -8,6 +8,7 @@
 #include <ArduinoJson.h>
 #include <Update.h>
 #include "api_client.h"
+#include "https_seite.h"
 
 static AsyncWebServer server(80);
 
@@ -211,6 +212,7 @@ static bool connectWiFi() {
         registerRoutes();
         server.begin();
         Serial.println("Webserver (STA) gestartet.");
+        https_seite_start();
         return true;
     }
 
@@ -272,6 +274,7 @@ static void startAccessPoint() {
     registerRoutes();
     server.begin();
     Serial.println("Webserver (AP) gestartet.");
+    https_seite_start();
 }
 
 // ---------------------------------------------------------------

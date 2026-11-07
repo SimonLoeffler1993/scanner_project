@@ -33,7 +33,7 @@ Der Scanner meldet sich alle 30 s beim Backend. Das Skiservice Center zeigt desh
 
 Findet der Scanner sein WLAN beim Start nicht innerhalb von etwa 10 s, öffnet er ebenfalls das Einrichtungs-WLAN.
 
-Ist er verbunden, erreicht man die **Konfigurationsseite** unter `http://<IP des Scanners>`. Die IP steht im Router oder in der seriellen Ausgabe. Dort kann man:
+Ist er verbunden, erreicht man die **Konfigurationsseite** unter `http://<IP des Scanners>` oder verschlüsselt unter `https://<IP des Scanners>`. Die IP steht im Router oder in der seriellen Ausgabe. Für https erzeugt der Scanner beim ersten Start ein eigenes, selbst signiertes Zertifikat. Die Warnung des Browsers einmal bestätigen. Das Zertifikat bleibt auch nach dem Zurücksetzen erhalten (NVS-Namensraum `scanner_tls`). Auf der Seite kann man:
 
 - Server-Adresse, Name und Modus ändern
 - mit „API testen“ prüfen, ob die API erreichbar ist
