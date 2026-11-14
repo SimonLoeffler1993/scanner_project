@@ -1,8 +1,8 @@
 #include "health.h"
 #include "einstellungen.h"
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "api_client.h"
 #include "scanner.h"
 
 static const uint32_t INTERVALL_OK_MS     = 30000;
@@ -27,17 +27,16 @@ static void pruefen() {
     String body;
     serializeJson(meldung, body);
 
-    HTTPClient http;
-    http.setTimeout(TIMEOUT_MS);
-    http.setConnectTimeout(TIMEOUT_MS);
-    http.begin(api_url("/api/v1/scanner/skiscanner/melden"));
-    http.addHeader("Content-Type", "application/json");
-    int code = http.POST(body);
-    http.end();
+    ApiAnfrage api;
+    api.begin("/api/v1/scanner/skiscanner/melden", TIMEOUT_MS);
+    api.http.addHeader("Content-Type", "application/json");
+    int code = api.http.POST(body);
+    String grund = code < 0 ? api.fehler(code) : "";
+    api.http.end();
 
     bool ok = code == 200;
     if (ok != api_ok || !schon_geprueft) {
-        Serial.printf("[HEALTH] API %s (HTTP %d)\n", ok ? "erreichbar" : "NICHT erreichbar", code);
+        Serial.printf("[HEALTH] API %s (HTTP %d) %s\n", ok ? "erreichbar" : "NICHT erreichbar", code, grund.c_str());
     }
     api_ok             = ok;
     letzter_http_code  = code;
@@ -61,7 +60,8 @@ static void health_task_fn(void *) {
 
 void health_init() {
     if (health_task) return;
-    xTaskCreatePinnedToCore(health_task_fn, "health", 6144, nullptr, 1, &health_task, 0);
+    // Mehr Stack als für reines HTTP: der TLS-Handshake (mbedTLS) braucht zusätzlich einige KB
+    xTaskCreatePinnedToCore(health_task_fn, "health", 10240, nullptr, 1, &health_task, 0);
 }
 
 void health_jetzt_pruefen() {

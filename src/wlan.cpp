@@ -6,8 +6,8 @@
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
-#include <HTTPClient.h>
 #include <Update.h>
+#include "api_client.h"
 
 static AsyncWebServer server(80);
 
@@ -150,12 +150,12 @@ static void registerRoutes() {
             request->send(400, "application/json", "{\"ok\":false,\"meldung\":\"Keine Server-Adresse eingetragen\"}");
             return;
         }
-        HTTPClient http;
-        http.setTimeout(3000);
-        http.begin(api_url("/api/v1/health"));
-        int code = http.GET();
-        String antwort = code > 0 ? http.getString() : "";
-        http.end();
+        ApiAnfrage api;
+        api.begin("/api/v1/health", 3000);
+        int code = api.http.GET();
+        String antwort = code > 0 ? api.http.getString() : "";
+        String grund = code < 0 ? api.fehler(code) : "";
+        api.http.end();
 
         JsonDocument ergebnis;
         ergebnis["ok"] = code == 200;
@@ -165,7 +165,7 @@ static void registerRoutes() {
             if (!deserializeJson(health, antwort)) ergebnis["status"] = health["status"];
             ergebnis["meldung"] = code == 200 ? "API erreichbar" : "API antwortet mit Fehler";
         } else {
-            ergebnis["meldung"] = String("Keine Verbindung: ") + HTTPClient::errorToString(code);
+            ergebnis["meldung"] = String("Keine Verbindung: ") + grund;
         }
         String json;
         serializeJson(ergebnis, json);
@@ -237,16 +237,15 @@ bool send_to_api(const char* code) {
     String body;
     serializeJson(anfrage, body);
 
-    HTTPClient http;
-    http.setTimeout(5000);
-    http.begin(api_url("/api/v1/scanner/skiscanner/scan"));
-    http.addHeader("Content-Type", "application/json");
-    int code_http = http.POST(body);
-    String antwort = code_http > 0 ? http.getString() : "";
-    http.end();
+    ApiAnfrage api;
+    api.begin("/api/v1/scanner/skiscanner/scan", 5000);
+    api.http.addHeader("Content-Type", "application/json");
+    int code_http = api.http.POST(body);
+    String antwort = code_http > 0 ? api.http.getString() : api.fehler(code_http);
+    api.http.end();
 
     if (code_http < 200 || code_http >= 300) {
-        Serial.printf("[API] Fehler → HTTP %d %s\n", code_http, code_http < 0 ? HTTPClient::errorToString(code_http).c_str() : antwort.c_str());
+        Serial.printf("[API] Fehler → HTTP %d %s\n", code_http, antwort.c_str());
         return false;
     }
 

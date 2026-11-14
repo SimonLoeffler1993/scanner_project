@@ -23,7 +23,7 @@ Der Scanner meldet sich alle 30 s beim Backend. Das Skiservice Center zeigt desh
 
 ## Einrichtung
 
-**Am schnellsten mit dem Webflasher:** „Neuinstallation“ wählen und WLAN, Server-Adresse, Name und Modus gleich mit eintragen. Nach dem Flashen ist der Scanner sofort einsatzbereit (siehe [Webflasher](#webflasher)).
+**Am schnellsten mit dem Webflasher:** „Neuinstallation“ wählen und WLAN, Server-Adresse, Name und Modus gleich mit eintragen. Nach dem Flashen ist der Scanner sofort einsatzbereit (siehe [Webflasher](#webflasher)). Im Skiservice Center öffnet Verwalten → Einstellungen → „Hardware-Scanner installieren“ den Webflasher mit bereits eingetragener Server-Adresse, Name und Modus.
 
 **Ohne vorher eingetragenes WLAN** startet der Scanner das Einrichtungs-WLAN (LED blinkt blau):
 
@@ -33,7 +33,7 @@ Der Scanner meldet sich alle 30 s beim Backend. Das Skiservice Center zeigt desh
 
 Findet der Scanner sein WLAN beim Start nicht innerhalb von etwa 10 s, öffnet er ebenfalls das Einrichtungs-WLAN.
 
-Ist er verbunden, erreicht man die **Konfigurationsseite** unter `http://<IP des Scanners>`. Die IP steht im Router oder in der seriellen Ausgabe. Dort kann man:
+Ist er verbunden, erreicht man die **Konfigurationsseite** unter `http://<IP des Scanners>` (nur http, nicht https). Die IP steht im Router oder in der seriellen Ausgabe. Auf der Seite kann man:
 
 - Server-Adresse, Name und Modus ändern
 - mit „API testen“ prüfen, ob die API erreichbar ist
@@ -41,7 +41,10 @@ Ist er verbunden, erreicht man die **Konfigurationsseite** unter `http://<IP des
 - ein Update einspielen
 - den Scanner zurücksetzen; alle Einstellungen werden gelöscht
 
-**Server-Adresse:** Eingetragen wird nur die Adresse des Backends mit Port, z. B. `http://192.168.1.10:8000`. Die Pfade ergänzt die Firmware.
+**Server-Adresse:** Eingetragen wird nur die Adresse des Backends mit Port, z. B. `https://api.example.de:8443` oder `http://192.168.1.10:8000`. Die Pfade ergänzt die Firmware.
+
+- **https://** – z. B. hinter Traefik (`skiserviceapi/docker/traefik`). Das Zertifikat wird geprüft und muss von Let's Encrypt stammen (ISRG Root X1/X2 sind in `src/zertifikate.h` eingebaut). Der Hostname muss zur Adresse passen, also den Namen eintragen, nicht die IP. Der DNS im Laden muss den Namen auf die IP des Servers auflösen. Selbst signierte Zertifikate oder eine eigene CA werden abgelehnt.
+- **http://** – direkt auf den veröffentlichten Port der API, ohne Verschlüsselung.
 
 **Name:** Der Name muss eindeutig sein, z. B. `Werkstatt`. Im Center legt jedes Tablet über das Zahnrad fest, auf welchen Scanner es hört. Dann sieht es nur dessen Status und Scans.
 
@@ -137,6 +140,21 @@ Der Workflow veröffentlicht den Webflasher (`webflasher/index.html`) zusammen m
   - Nötig für neue Geräte und einmalig für Geräte mit der alten Partitionstabelle.
 - **Update:** schreibt nur Firmware und Konfigurationsseiten, die Einstellungen bleiben erhalten.
 
+Die Einrichtung lässt sich im Link vorbelegen, so öffnet ihn auch das Skiservice Center:
+
+```
+https://<pages-adresse>/#server=https://api.example.de&name=Werkstatt&modus=2
+```
+
+| Parameter | Feld | Hinweis |
+|---|---|---|
+| `server` | Server-Adresse | muss mit `http://` oder `https://` beginnen |
+| `name` | Name des Scanners | |
+| `modus` | Modus | `0`, `1` oder `2`, siehe [Modi](#modi) |
+| `ssid` | WLAN-Name | |
+
+Ungültige Werte werden ignoriert. Die Parameter stehen hinter `#` (werden nicht an den Webserver gesendet), `?` geht auch. Das WLAN-Passwort lässt sich bewusst nicht übergeben.
+
 Statt der Online-Version kann man eigene Dateien wählen: `scanner_vollstaendig.bin` bzw. `firmware.bin` + `littlefs.bin` aus dem Release.
 
 Lokal testen:
@@ -183,6 +201,7 @@ Die serielle Ausgabe zeigt u. a. `[USB]` (Scanner erkannt), `[SCAN]` (gescannter
 |---|---|
 | LED blinkt rot, Scanner steckt | Scanner am USB-Port (OTG) statt am COM-Port? OTG-Jumper am Board geschlossen? |
 | LED blinkt lila, die API läuft aber | Server-Adresse mit Port prüfen (z. B. `:8000`), Firewall des Servers, „API testen“ auf der Konfigurationsseite |
+| „API testen“ meldet einen TLS-Fehler | Bei https: Namen statt IP eintragen (das Zertifikat gilt nur für den Namen), DNS im Laden prüfen, Zertifikat muss von Let's Encrypt sein. Sonst http:// auf den API-Port verwenden |
 | Im Center „getrennt“ | LED am Scanner ansehen. Grün kurz = WLAN, lila = API. Sonst Strom und Name prüfen |
 | Im Center nicht in der Liste | Der Scanner hat sich noch nie gemeldet: Server-Adresse prüfen. Firmware vor dieser Version erscheint erst nach dem ersten Scan |
 | Scan blinkt rot | Modus prüfen: Fertigstellen nimmt nur Service-Etiketten. Bindung prüfen braucht einen beauftragten Bindungscheck bzw. Verleih-Material mit Ski. Details in der seriellen Ausgabe |
