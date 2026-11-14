@@ -151,6 +151,7 @@
           </div>
         </div>
         <div class="box warn">Der Flash wird komplett gelöscht, alle Einstellungen gehen verloren.</div>
+        <div class="box ok" id="ausLink" hidden></div>
         <p class="hinweis" style="margin-bottom: 12px;">Optional: Ist alles ausgefüllt, ist der Scanner nach dem Flashen sofort einsatzbereit. Sonst öffnet er das WLAN <strong>Skiscanner-Config</strong> zur Einrichtung.</p>
         <div class="felder">
           <div class="feld">
@@ -261,6 +262,45 @@
       return block;
     }
     window.skiflasher = { wcfgBlock };
+
+    // Einrichtung aus dem Link vorbelegen, z.B. vom Skiservice Center:
+    // #server=https://api.example.de&name=Werkstatt&modus=2 (ersatzweise als ?...).
+    // Der Teil hinter # wird nicht an den Webserver gesendet. Ein WLAN-Passwort wird bewusst nicht gelesen.
+    function einrichtungAusUrl() {
+      const parameter = new URLSearchParams(location.hash.replace(/^#/, ""));
+      new URLSearchParams(location.search).forEach((wert, schluessel) => {
+        if (!parameter.has(schluessel)) parameter.set(schluessel, wert);
+      });
+      const wert = (schluessel) => (parameter.get(schluessel) ?? "").trim();
+      const uebernommen = [];
+
+      const server = wert("server");
+      if (/^https?:\/\/[^/\s]+/i.test(server)) {
+        $("server").value = server;
+        uebernommen.push("Server-Adresse");
+      }
+      if (wert("name")) {
+        $("name").value = wert("name");
+        uebernommen.push("Name");
+      }
+      // Nur bekannte Modi, sonst bliebe die Auswahl leer und es würde still 0 geschrieben
+      if (["0", "1", "2"].includes(wert("modus"))) {
+        $("modus").value = wert("modus");
+        uebernommen.push("Modus");
+      }
+      if (wert("ssid")) {
+        $("ssid").value = wert("ssid");
+        uebernommen.push("WLAN-Name");
+      }
+      if (!uebernommen.length) return;
+
+      artWaehlen("neu");
+      const wlanFehlt = !$("ssid").value;
+      $("ausLink").textContent = `Aus dem Link übernommen: ${uebernommen.join(", ")}.`
+        + (wlanFehlt ? " Bitte noch das WLAN eintragen." : " Bitte noch das WLAN-Passwort eintragen.");
+      $("ausLink").hidden = false;
+      $(wlanFehlt ? "ssid" : "passwort").focus();
+    }
 
     async function ladeManifest() {
       try {
@@ -444,6 +484,7 @@
     $("reiterNeu").addEventListener("click", () => artWaehlen("neu"));
     $("reiterUpdate").addEventListener("click", () => artWaehlen("update"));
     document.querySelectorAll('input[name="quelle"]').forEach((r) => r.addEventListener("change", quelleAnzeigen));
+    einrichtungAusUrl();
     ladeManifest();
   </script>
 </body>

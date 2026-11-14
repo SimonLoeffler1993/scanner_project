@@ -23,7 +23,7 @@ Der Scanner meldet sich alle 30 s beim Backend. Das Skiservice Center zeigt desh
 
 ## Einrichtung
 
-**Am schnellsten mit dem Webflasher:** „Neuinstallation“ wählen und WLAN, Server-Adresse, Name und Modus gleich mit eintragen. Nach dem Flashen ist der Scanner sofort einsatzbereit (siehe [Webflasher](#webflasher)).
+**Am schnellsten mit dem Webflasher:** „Neuinstallation“ wählen und WLAN, Server-Adresse, Name und Modus gleich mit eintragen. Nach dem Flashen ist der Scanner sofort einsatzbereit (siehe [Webflasher](#webflasher)). Im Skiservice Center öffnet Verwalten → Einstellungen → „Hardware-Scanner installieren“ den Webflasher mit bereits eingetragener Server-Adresse, Name und Modus.
 
 **Ohne vorher eingetragenes WLAN** startet der Scanner das Einrichtungs-WLAN (LED blinkt blau):
 
@@ -139,6 +139,21 @@ Der Workflow veröffentlicht den Webflasher (`webflasher/index.html`) zusammen m
   - WLAN, Server-Adresse, Name und Modus lassen sich direkt eingeben. Sie landen in der Partition `wcfg` und werden beim ersten Start übernommen.
   - Nötig für neue Geräte und einmalig für Geräte mit der alten Partitionstabelle.
 - **Update:** schreibt nur Firmware und Konfigurationsseiten, die Einstellungen bleiben erhalten.
+
+Die Einrichtung lässt sich im Link vorbelegen, so öffnet ihn auch das Skiservice Center:
+
+```
+https://<pages-adresse>/#server=https://api.example.de&name=Werkstatt&modus=2
+```
+
+| Parameter | Feld | Hinweis |
+|---|---|---|
+| `server` | Server-Adresse | muss mit `http://` oder `https://` beginnen |
+| `name` | Name des Scanners | |
+| `modus` | Modus | `0`, `1` oder `2`, siehe [Modi](#modi) |
+| `ssid` | WLAN-Name | |
+
+Ungültige Werte werden ignoriert. Die Parameter stehen hinter `#` (werden nicht an den Webserver gesendet), `?` geht auch. Das WLAN-Passwort lässt sich bewusst nicht übergeben.
 
 Statt der Online-Version kann man eigene Dateien wählen: `scanner_vollstaendig.bin` bzw. `firmware.bin` + `littlefs.bin` aus dem Release.
 
