@@ -58,7 +58,7 @@ const uint8_t keycode2ascii_de[57][2] = {
     {' ', ' '},   {'-', '?'},   {'=', 0},     {'[', '{'},
     {']', '}'},   {'\\', '|'},  {'\\', '|'},  {';', ':'},
     {'\'', '"'},  {'`', '~'},   {',', ';'},   {'.', ':'},
-    {'/', '?'},
+    {'-', '_'},
 };
 
 // Active layout: true = DE, false = US
@@ -95,12 +95,11 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
 {
     switch (event) {
         case HID_HOST_INTERFACE_EVENT_INPUT_REPORT: {
-            uint8_t data[10] = {0};
+            uint8_t data[64] = {0};
             size_t  data_len = 0;
             hid_host_device_get_raw_input_report_data(dev, data, sizeof(data), &data_len);
-            Serial.printf("[USB] Raw report len=%d:", (int)data_len);
-            for (size_t i = 0; i < data_len; ++i) Serial.printf(" %02X", data[i]);
-            Serial.println();
+            // Keine Serial-Ausgabe je Report: sie bremst den Callback so weit,
+            // dass schnelle Scanner einzelne Tastendrücke verlieren.
             if (data_len < 3) break;
 
             bool shift = (data[0] & 0x22) != 0;
@@ -112,7 +111,6 @@ static void keyboard_event_cb(hid_host_device_handle_t dev,
 
                 const uint8_t (*map)[2] = use_de_layout ? keycode2ascii_de : keycode2ascii;
                 uint8_t ch = shift ? map[kc][1] : map[kc][0];
-                Serial.printf("[USB] kc=%d shift=%d ch=0x%02X\n", kc, shift ? 1 : 0, (int)ch);
                 if (ch == 0) continue;
 
                 if (ch == '\r') {
@@ -152,6 +150,12 @@ static void start_reports_task(void *a)
 {
     hid_host_device_handle_t d = (hid_host_device_handle_t)a;
     vTaskDelay(pdMS_TO_TICKS(500));
+    // Funk-Dongles (z.B. Inateck 2,4 GHz) liefern erst Reports, nachdem der
+    // Host wie ein PC SET_IDLE geschickt hat. Kabelscanner stört es nicht.
+    esp_err_t idle = hid_class_request_set_idle(d, 0, 0);
+    if (idle != ESP_OK) {
+        Serial.printf("[USB] SET_IDLE abgelehnt: %s\n", esp_err_to_name(idle));
+    }
     if (hid_host_device_start(d) == ESP_OK) {
         Serial.println("[USB] Input reports started (delayed).");
     } else {
