@@ -4,6 +4,7 @@
 #include <ArduinoJson.h>
 #include "api_client.h"
 #include "scanner.h"
+#include "update.h"
 
 static const uint32_t INTERVALL_OK_MS     = 30000;
 static const uint32_t INTERVALL_FEHLER_MS = 10000;
@@ -24,6 +25,10 @@ static void pruefen() {
     meldung["firmware"]    = FIRMWARE_VERSION;
     meldung["ip"]          = WiFi.localIP().toString();
     meldung["usb_scanner"] = scanner_connected;
+    // Selbst-Update: das Center darf es anstoßen und zeigt den Stand an
+    meldung["update_faehig"] = true;
+    meldung["update_status"] = update_status();
+    meldung["update_fehler"] = update_fehler();
     String body;
     serializeJson(meldung, body);
 
@@ -32,6 +37,14 @@ static void pruefen() {
     api.http.addHeader("Content-Type", "application/json");
     int code = api.http.POST(body);
     String grund = code < 0 ? api.fehler(code) : "";
+    // "update": true = im Center wurde ein Firmware-Update angestoßen
+    bool update_gewuenscht = false;
+    if (code == 200) {
+        JsonDocument antwort;
+        if (!deserializeJson(antwort, api.http.getString())) {
+            update_gewuenscht = antwort["update"] | false;
+        }
+    }
     api.http.end();
 
     bool ok = code == 200;
@@ -42,6 +55,8 @@ static void pruefen() {
     letzter_http_code  = code;
     letzte_pruefung_ms = millis();
     schon_geprueft     = true;
+
+    if (update_gewuenscht) update_anfordern();
 }
 
 // Läuft getrennt von loop(), damit ein langsamer Server weder Scans noch die LED blockiert
