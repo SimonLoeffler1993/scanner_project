@@ -3,14 +3,17 @@
 #include "zertifikate.h"
 
 bool ApiAnfrage::begin(const char *pfad, uint16_t timeout_ms) {
-    String url = api_url(pfad);
+    return begin_url(api_url(pfad), timeout_ms, LETSENCRYPT_WURZELN);
+}
+
+bool ApiAnfrage::begin_url(const String &url, uint16_t timeout_ms, const char *wurzeln) {
     http.setTimeout(timeout_ms);
     http.setConnectTimeout(timeout_ms);
 
     String klein = url;
     klein.toLowerCase();
     if (klein.startsWith("https://")) {
-        tls.setCACert(LETSENCRYPT_WURZELN);
+        tls.setCACert(wurzeln);
         // Sekunden, Standard wären 120 s. Der Handshake dauert auf dem S3 deutlich unter einer Sekunde
         tls.setHandshakeTimeout(timeout_ms / 1000 + 3);
         return http.begin(tls, url);

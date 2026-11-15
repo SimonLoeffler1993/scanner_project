@@ -16,6 +16,8 @@ struct ApiAnfrage {
 
     // Server-Adresse + Pfad öffnen. false bei ungültiger Adresse
     bool begin(const char *pfad, uint16_t timeout_ms);
+    // Beliebige Adresse öffnen, bei https geprüft gegen die übergebenen Wurzelzertifikate (PEM, muss bestehen bleiben)
+    bool begin_url(const String &url, uint16_t timeout_ms, const char *wurzeln);
     // Fehlertext zu einem negativen HTTP-Code, bei https mit dem TLS-Grund (z.B. Zertifikat abgelehnt)
     String fehler(int code);
 };

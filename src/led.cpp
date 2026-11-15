@@ -54,6 +54,10 @@ void led_blink_purple_twice_start() {
     led_blink_start(160, 0, 255, 2, 500, 250);
 }
 
+void led_blink_white_twice_start() {
+    led_blink_start(255, 255, 255, 2, 500, 250);
+}
+
 void led_blink_red_twice_start() {
     led_blink_start(255, 0, 0, 2, 500, 250);
 }

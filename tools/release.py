@@ -2,13 +2,14 @@
 Erzeugt aus dem PlatformIO-Build die Dateien für Release und Webflasher:
   scanner_vollstaendig.bin  komplettes Image ab 0x0 (Neuinstallation per esptool)
   bootloader.bin, partitions.bin, boot_app0.bin, firmware.bin, littlefs.bin
-  manifest.json             Version, Dateien und Offsets für den Webflasher
+  manifest.json             Version, Dateien und Offsets für den Webflasher, Größe und MD5 für das Selbst-Update
 
 Aufruf (nach "pio run" und "pio run -t buildfs"):
   python tools/release.py <ausgabeordner> [version]
 Die Offsets kommen aus partitions.csv.
 """
 import csv
+import hashlib
 import json
 import os
 import shutil
@@ -62,6 +63,10 @@ def main():
         befehl += [hex(offset), str(ziel / name)]
     subprocess.run(befehl, check=True)
 
+    def ota(name):
+        inhalt = (ziel / name).read_bytes()
+        return {"datei": name, "groesse": len(inhalt), "md5": hashlib.md5(inhalt).hexdigest()}
+
     eintrag = lambda name: {"datei": name, "offset": dateien[name][1]}
     manifest = {
         "version": version,
@@ -71,6 +76,8 @@ def main():
         # Update: NVS (Einstellungen) bleibt, boot_app0 sorgt dafür, dass nach einem OTA wieder app0 startet
         "update": [eintrag(n) for n in ("boot_app0.bin", "firmware.bin", "littlefs.bin")],
         "wcfg": {"offset": teile["wcfg"][0], "groesse": teile["wcfg"][1]},
+        # Selbst-Update des Scanners (src/update.cpp): Größe und MD5 prüft er vor dem Umschalten
+        "ota": {"firmware": ota("firmware.bin"), "littlefs": ota("littlefs.bin")},
     }
     (ziel / "manifest.json").write_text(json.dumps(manifest, indent=2))
     print(json.dumps(manifest, indent=2))

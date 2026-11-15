@@ -16,6 +16,7 @@
 #include "led.h"
 #include "wlan.h"
 #include "health.h"
+#include "update.h"
 
 // loop() sendet die Scans, bei https mit TLS-Handshake: die standardmäßigen 8 KB Stack sind dafür knapp
 SET_LOOP_TASK_STACK_SIZE(16 * 1024);
@@ -65,7 +66,8 @@ void loop() {
     bool ap_mode          = (WiFi.getMode() == WIFI_AP);
     bool wifi_connected   = (WiFi.status() == WL_CONNECTED);
     bool api_ok           = health_api_ok();
-    bool all_ok           = scanner_connected && wifi_connected && !ap_mode && api_configured() && api_ok;
+    bool update           = update_laeuft();
+    bool all_ok           = scanner_connected && wifi_connected && !ap_mode && api_configured() && api_ok && !update;
 
     // USB-Scanner ein- oder ausgesteckt: gleich beim Backend melden, damit das Center es sofort zeigt
     static bool scanner_vorher = scanner_connected;
@@ -82,7 +84,10 @@ void loop() {
 
     // Alle 3 Sekunden Blink-Sequenz neu starten
     if (millis() - last_blink_trigger > 3000) {
-        if (!scanner_connected) {
+        if (update) {
+            led_blink_white_twice_start();
+            status_led_set = false;
+        } else if (!scanner_connected) {
             led_blink_red_twice_start();
             status_led_set = false;
         } else if (ap_mode) {
@@ -115,7 +120,10 @@ void loop() {
         if (xQueueReceive(scan_queue, buf, 0) == pdTRUE) {
             Serial.printf("[SCAN] Code: %s\n", buf);
             status_led_set = false;  // nach Scan neu evaluieren
-            if (WiFi.status() == WL_CONNECTED) {
+            if (update) {
+                Serial.println("[SCAN] Firmware-Update läuft – Code nicht gesendet.");
+                led_blink_red_twice_start_fast();
+            } else if (WiFi.status() == WL_CONNECTED) {
                 bool ok = send_to_api(buf);
                 ok ? led_blink_green_twice_start() : led_blink_red_twice_start_fast();
                 if (!ok) health_jetzt_pruefen();  // evtl. ist die API weg

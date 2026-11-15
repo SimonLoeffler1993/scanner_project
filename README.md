@@ -74,6 +74,7 @@ Welche Art von Etikett gescannt wurde, erkennt das Backend an der URL im QR-Code
 
 | | Farbe | Muster | Bedeutung | Was tun |
 |---|---|---|---|---|
+| 0 | ⚪ Weiß | 2× normal, alle 3 s | Firmware-Update läuft (aus dem Center angestoßen) | Warten, nicht ausstecken. Scans werden so lange abgelehnt (rot), danach startet der Scanner neu |
 | 1 | 🔴 Rot | 2× normal, alle 3 s | Kein USB-Scanner erkannt | Den Scanner am **USB-Port** (OTG) einstecken, nicht am COM-Port. Adapter und OTG-Jumper prüfen |
 | 2 | 🔵 Blau | 2× langsam, alle 3 s | Einrichtungsmodus, das WLAN `Skiscanner-Config` ist offen | Verbinden und `http://192.168.4.1` öffnen, siehe [Einrichtung](#einrichtung). Kommt auch, wenn das eingetragene WLAN beim Start nicht erreichbar war |
 | 3 | 🟢 Grün | 2× kurz, alle 3 s | WLAN-Verbindung verloren | Router, Reichweite und WLAN-Passwort prüfen. Der Scanner verbindet sich von selbst neu |
@@ -123,8 +124,11 @@ Farben und Zeiten stehen in `src/led.cpp`, die Reihenfolge der Prüfungen in `lo
 
 Die Einstellungen liegen im NVS und bleiben bei einem Update erhalten.
 
+- **Center → Verwalten → Hardware-Scanner → „Firmware aktualisieren“:** der Scanner erfährt es bei seiner nächsten Meldung (spätestens nach 30 s), lädt `manifest.json` von GitHub Pages und installiert Konfigurationsseiten und Firmware selbst, wenn dort eine andere Version liegt als seine eigene. Größe und MD5 aus dem Manifest werden geprüft, danach startet er neu. Dafür braucht der Scanner **Internetzugang** (`https://simonloeffler1993.github.io`). Stand und Fehler zeigt das Center, Details stehen in der seriellen Ausgabe (`[UPDATE]`). Code in `src/update.cpp`.
 - **Webflasher → „Update“:** per USB-Kabel am COM-Port, siehe unten.
 - **Konfigurationsseite → Update:** per WLAN, ohne Kabel. `firmware.bin` aktualisiert die Firmware, `littlefs.bin` die Konfigurationsseiten. Eine Datei mit „littlefs“ im Namen wird automatisch als Dateisystem eingespielt.
+
+Scanner mit einer Firmware **vor dem Selbst-Update** kennen den Auslöser aus dem Center nicht (dort steht dann ein Hinweis): einmal über den Webflasher oder die Konfigurationsseite aktualisieren.
 
 Geräte mit der **alten Partitionstabelle** (Firmware vor der Umstellung auf NVS) brauchen **einmal** eine Neuinstallation über den Webflasher.
 
