@@ -49,7 +49,8 @@ static void pruefen() {
 
     bool ok = code == 200;
     if (ok != api_ok || !schon_geprueft) {
-        Serial.printf("[HEALTH] API %s (HTTP %d) %s\n", ok ? "erreichbar" : "NICHT erreichbar", code, grund.c_str());
+        Serial.printf("[HEALTH] API %s (HTTP %d) %s\n", ok ? "erreichbar" : "NICHT erreichbar", code,
+                      code == 401 || code == 403 ? "Geräteschlüssel fehlt oder ist ungültig" : grund.c_str());
     }
     api_ok             = ok;
     letzter_http_code  = code;

@@ -37,6 +37,8 @@ AppConfig einstellungen_laden() {
     cfg.serverUrl = prefs.getString("server_url", "");
     cfg.name      = prefs.getString("name", "");
     cfg.modus     = prefs.getInt("modus", MODUS_FERTIG);
+    // NVS-Schlüssel höchstens 15 Zeichen
+    cfg.apiSchluessel = prefs.getString("api_schluessel", "");
     prefs.end();
     cache = cfg;
     cache_gueltig = true;
@@ -52,6 +54,7 @@ void einstellungen_speichern(const AppConfig &cfg) {
     prefs.putString("server_url", server_bereinigen(cfg.serverUrl));
     prefs.putString("name", cfg.name);
     prefs.putInt("modus", cfg.modus);
+    prefs.putString("api_schluessel", cfg.apiSchluessel);
     prefs.end();
     cache_gueltig = false;
 }
@@ -107,6 +110,7 @@ static void webflasher_einrichtung_uebernehmen() {
             if (doc["server_url"].is<const char *>()) cfg.serverUrl = doc["server_url"].as<String>();
             if (doc["name"].is<const char *>())       cfg.name      = doc["name"].as<String>();
             if (doc["modus"].is<int>())               cfg.modus     = doc["modus"].as<int>();
+            if (doc["api_schluessel"].is<const char *>()) cfg.apiSchluessel = doc["api_schluessel"].as<String>();
             einstellungen_speichern(cfg);
             Serial.println("[CONFIG] Einrichtung aus dem Webflasher übernommen");
         } else {

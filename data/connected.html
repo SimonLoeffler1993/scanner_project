@@ -232,6 +232,7 @@
             let api;
             if (!d.server_url) api = 'Keine Server-Adresse';
             else if (d.api.vor_s < 0) api = 'Noch nicht geprüft';
+            else if (!d.api.ok && (d.api.http_code === 401 || d.api.http_code === 403)) api = 'Abgelehnt: Geräteschlüssel fehlt oder ist ungültig';
             else api = (d.api.ok ? 'Erreichbar' : 'Nicht erreichbar (' + d.api.http_code + ')') + ', vor ' + d.api.vor_s + ' s';
             setze('st-api', api, d.api.ok);
             setze('st-firmware', d.firmware);
@@ -270,6 +271,11 @@
       <div class="field">
         <label for="api_name">Name des Scanners</label>
         <input id="api_name" type="text" name="api_name" placeholder="z.B. Werkstatt" value="%API_NAME%">
+      </div>
+      <div class="field">
+        <label for="api_schluessel">Geräteschlüssel (%API_SCHLUESSEL_STATUS%)</label>
+        <input id="api_schluessel" type="password" name="api_schluessel" autocomplete="off" placeholder="leer lassen = unverändert">
+        <label style="font-weight: normal; font-size: 0.8rem;"><input type="checkbox" name="api_schluessel_loeschen" value="1"> Schlüssel entfernen</label>
       </div>
       <div class="field">
         <label for="api_trigger">Modus</label>

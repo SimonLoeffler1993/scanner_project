@@ -31,6 +31,8 @@ static String processTemplate(const String &var) {
     if (var == "USB_SCANNER")  return scanner_connected ? "Verbunden" : "Nicht verbunden";
     if (var == "SERVER_URL")   return cfg.serverUrl;
     if (var == "API_NAME")     return cfg.name;
+    // Den Schlüssel selbst nie auf der Seite ausgeben
+    if (var == "API_SCHLUESSEL_STATUS") return cfg.apiSchluessel.length() ? "gesetzt" : "nicht gesetzt";
     if (var == "API_TRIGGER_0") return modus_selected(cfg, MODUS_BEARBEITUNG);
     if (var == "API_TRIGGER_1") return modus_selected(cfg, MODUS_FERTIG);
     if (var == "API_TRIGGER_2") return modus_selected(cfg, MODUS_BINDUNG);
@@ -42,6 +44,13 @@ static void api_felder_uebernehmen(AsyncWebServerRequest *request, AppConfig &cf
     if (request->hasParam("server_url", true))  cfg.serverUrl = request->getParam("server_url", true)->value();
     if (request->hasParam("api_name", true))    cfg.name      = request->getParam("api_name", true)->value();
     if (request->hasParam("api_trigger", true)) cfg.modus     = request->getParam("api_trigger", true)->value().toInt();
+    // Geräteschlüssel: leeres Feld = unverändert, "Schlüssel entfernen" löscht ihn
+    if (request->hasParam("api_schluessel", true)) {
+        String schluessel = request->getParam("api_schluessel", true)->value();
+        schluessel.trim();
+        if (schluessel.length()) cfg.apiSchluessel = schluessel;
+    }
+    if (request->hasParam("api_schluessel_loeschen", true)) cfg.apiSchluessel = "";
 }
 
 // ---------------------------------------------------------------
@@ -105,6 +114,7 @@ static void registerRoutes() {
         api["ok"]        = health_api_ok();
         api["http_code"] = health_http_code();
         api["vor_s"]     = health_vor_sekunden();
+        api["schluessel_gesetzt"] = cfg.apiSchluessel.length() > 0;
         bool alles_ok = verbunden && scanner_connected && health_api_ok();
         doc["status"] = alles_ok ? "ok" : "fehler";
         String json;
@@ -166,6 +176,27 @@ static void registerRoutes() {
             ergebnis["meldung"] = code == 200 ? "API erreichbar" : "API antwortet mit Fehler";
         } else {
             ergebnis["meldung"] = String("Keine Verbindung: ") + grund;
+        }
+
+        // Geräteschlüssel prüfen (die API kann Scanner ohne gültigen Schlüssel ablehnen)
+        if (code == 200 && einstellungen_laden().apiSchluessel.length()) {
+            ApiAnfrage pruefung;
+            pruefung.begin("/api/v1/auth/geraet", 3000);
+            int code_schluessel = pruefung.http.GET();
+            String antwort_schluessel = code_schluessel > 0 ? pruefung.http.getString() : "";
+            pruefung.http.end();
+            if (code_schluessel == 200) {
+                JsonDocument geraet;
+                deserializeJson(geraet, antwort_schluessel);
+                ergebnis["meldung"] = String("API erreichbar, Geräteschlüssel „") + (const char *)(geraet["name"] | "") + "“ gültig";
+            } else if (code_schluessel == 401 || code_schluessel == 403) {
+                ergebnis["ok"] = false;
+                ergebnis["http_code"] = code_schluessel;
+                ergebnis["meldung"] = "API erreichbar, aber der Geräteschlüssel ist ungültig oder gesperrt";
+            }
+            // Ältere API ohne /auth/geraet (404): nur Erreichbarkeit melden
+        } else if (code == 200) {
+            ergebnis["meldung"] = "API erreichbar (ohne Geräteschlüssel)";
         }
         String json;
         serializeJson(ergebnis, json);
@@ -244,6 +275,10 @@ bool send_to_api(const char* code) {
     String antwort = code_http > 0 ? api.http.getString() : api.fehler(code_http);
     api.http.end();
 
+    if (code_http == 401 || code_http == 403) {
+        Serial.printf("[API] Abgelehnt → HTTP %d: Geräteschlüssel fehlt oder ist ungültig\n", code_http);
+        return false;
+    }
     if (code_http < 200 || code_http >= 300) {
         Serial.printf("[API] Fehler → HTTP %d %s\n", code_http, antwort.c_str());
         return false;

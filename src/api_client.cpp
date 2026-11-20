@@ -3,7 +3,11 @@
 #include "zertifikate.h"
 
 bool ApiAnfrage::begin(const char *pfad, uint16_t timeout_ms) {
-    return begin_url(api_url(pfad), timeout_ms, LETSENCRYPT_WURZELN);
+    if (!begin_url(api_url(pfad), timeout_ms, LETSENCRYPT_WURZELN)) return false;
+    // Nur zur eigenen API, nicht in begin_url (das lädt auch Firmware von GitHub)
+    String schluessel = einstellungen_laden().apiSchluessel;
+    if (schluessel.length()) http.addHeader("X-Geraete-Schluessel", schluessel);
+    return true;
 }
 
 bool ApiAnfrage::begin_url(const String &url, uint16_t timeout_ms, const char *wurzeln) {
