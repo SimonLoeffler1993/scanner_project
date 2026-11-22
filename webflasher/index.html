@@ -178,6 +178,11 @@
               <option value="0">Bearbeitungsstand</option>
             </select>
           </div>
+          <div class="feld breit">
+            <label for="schluessel">Geräteschlüssel</label>
+            <!-- Absichtlich nicht aus dem Link vorbelegbar: der Schlüssel wird im Center nur einmal angezeigt -->
+            <input id="schluessel" type="password" autocomplete="off" placeholder="aus dem Center: Verwalten → Geräte">
+          </div>
         </div>
       </div>
 
@@ -369,6 +374,7 @@
           server_url: server,
           name: $("name").value.trim(),
           modus: Number($("modus").value),
+          api_schluessel: $("schluessel").value.trim(),
         }, wcfg.groesse);
         if (block) {
           teile.push({ name: "Einrichtung (wcfg)", offset: wcfg.offset, daten: block });

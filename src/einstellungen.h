@@ -16,6 +16,8 @@ struct AppConfig {
     // Name des Scanners, wird im Center angezeigt
     String name;
     int    modus = MODUS_FERTIG;
+    // Geräteschlüssel "Hardware-Scanner" aus dem Center (Verwalten → Geräte), geht als X-Geraete-Schluessel mit
+    String apiSchluessel;
 };
 
 // Einstellungen liegen im NVS (Preferences), damit ein Firmware- oder Dateisystem-Update sie nicht löscht
